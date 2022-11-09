@@ -27,4 +27,4 @@ uninstall:
 	    configmap ca-bundle \
 	    -n external-secrets
 	@oc delete \
-	    project external-secrets
+	    ns external-secrets

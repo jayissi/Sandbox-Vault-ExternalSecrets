@@ -28,4 +28,5 @@ uninstall:
 	helm uninstall \
 	  vault-server \
 	    --namespace vault-server
-	@oc delete project vault-server
+	@oc delete \
+	    ns vault-server
