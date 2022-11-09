@@ -1,0 +1,173 @@
+apiVersion: v1
+data:
+  init.sh: |
+    #!/bin/bash
+
+    set -e
+
+    CLUSTER_NAME={{ .Values.vaultInit.clusterName }}
+    CONFIGURE_K8S_AUTH={{ .Values.vaultInit.configureKubernetesAuth }}
+    CONFIGURE_VCO={{ .Values.vaultInit.vaultConfigOperator.configureVCO }}
+    HA_MODE={{ .Values.vault.server.ha.enabled }}
+    HELM_DEPLOYMENT_NAME={{ .Values.vaultInit.helmDeploymentName }}
+    VCO_NAME={{ .Values.vaultInit.vaultConfigOperator.name }}
+
+    [[ -z $PAUSE_INIT ]] && PAUSE_INIT={{ .Values.vaultInit.pauseInit }}
+
+    if [[ $PAUSE_INIT == 'true' ]] ; then
+        echo "init.sh will not run while PAUSE_INIT is 'true'"
+        exit 0
+    fi
+
+    # /bin is protected, so download executables to /tmp
+    [[ ! -d /tmp/bin ]] && mkdir /tmp/bin
+    export PATH="$PATH:/tmp/bin"
+
+    # TODO: Should be able to curl k8s API instead of downloading oc
+    curl -Ls -o /tmp/bin/oc "http://downloads.openshift-console.svc.cluster.local/amd64/linux/oc"
+    chmod +x /tmp/bin/oc
+
+    curl -Ls -o /tmp/bin/jq "https://github.com/stedolan/jq/releases/latest/download/jq-linux64"
+    chmod +x /tmp/bin/jq
+
+    unseal-vault() {
+        # We will need 3/5 keys to unseal each Vault instance
+        VAULT_UNSEAL_KEY1=$(jq -r '.unseal_keys_b64[0]' /tmp/recovery-keys.json)
+        VAULT_UNSEAL_KEY2=$(jq -r '.unseal_keys_b64[1]' /tmp/recovery-keys.json)
+        VAULT_UNSEAL_KEY3=$(jq -r '.unseal_keys_b64[2]' /tmp/recovery-keys.json)
+
+        vault operator unseal "$VAULT_UNSEAL_KEY1"
+        vault operator unseal "$VAULT_UNSEAL_KEY2"
+        vault operator unseal "$VAULT_UNSEAL_KEY3"
+    }
+
+    # Unseal vault if vault-recovery-keys secret exists
+    if oc get secrets vault-recovery-keys &> /dev/null; then
+        echo 'Vault is already initialized!'
+        echo 'Using vault-recovery-key secret to unseal vault...'
+        oc get secret vault-recovery-keys \
+            -o jsonpath="{.data.recovery-keys\.json}" \
+            | base64 -d > /tmp/recovery-keys.json
+        unseal-vault
+        rm /tmp/recovery-keys.json
+        echo 'Vault is unsealed!'
+        exit 0
+    fi
+
+    if [[ "$HOSTNAME" != "${HELM_DEPLOYMENT_NAME}-0" ]] ; then
+        echo "Joining $HOSTNAME to raft..."
+        vault operator raft join "http://${HELM_DEPLOYMENT_NAME}-0.${HELM_DEPLOYMENT_NAME}-internal:8200"
+        echo "$HOSTNAME joined to raft!"
+
+        echo "Exit code 2: Raft joined, vault-recovery-keys secret not yet present"
+        exit 2
+    fi
+
+    # Everything beyond this point is only executed on the first run against the vault-sever-0 pod
+    echo 'Initializing vault...'
+    vault operator init -format=json > /tmp/recovery-keys.json
+
+    echo 'Unsealing vault...'
+    unseal-vault
+
+    if [[ $CONFIGURE_K8S_AUTH == 'true' ]] ; then
+        ROOT_TOKEN=$(jq -r '.root_token' /tmp/recovery-keys.json)
+
+        echo "Logging into Vault..."
+        vault login - <<< "$ROOT_TOKEN"
+
+        echo "Enabling $CLUSTER_NAME Kubernetes auth engine..."
+        vault auth enable \
+            -description="Local cluster k8s auth created by vault-init script" \
+            -path="$CLUSTER_NAME" \
+            kubernetes
+
+        echo "Configuring $CLUSTER_NAME Kubernetes auth engine..."
+        vault write "auth/$CLUSTER_NAME/config" \
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+            kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
+            kubernetes_ca_cert="@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+        echo "Gettting $CLUSTER_NAME auth engine accessor..."
+        MOUNT_ACCESSOR=$(vault auth list -format=json | jq -r ".\"$CLUSTER_NAME/\".accessor")
+
+        # Indenting here is important
+        echo "Writing $CLUSTER_NAME-read policy..."
+        vault policy write "$CLUSTER_NAME-read" - << EOF
+    # Grant k8s namespaces the ability to view secrets under "/${CLUSTER_NAME}/data/<NAMESPACE>/*"
+    path "${CLUSTER_NAME}/data/{{ "{{" }}identity.entity.aliases.${MOUNT_ACCESSOR}.metadata.service_account_namespace{{ "}}" }}/*" {
+        capabilities=["read","list"]
+    }
+    EOF
+
+        echo "Creating $CLUSTER_NAME kv secret engine..."
+        vault secrets enable -version=2 -path="$CLUSTER_NAME" kv
+
+        echo "Creating $HELM_DEPLOYMENT_NAME role..."
+        vault write \
+            "auth/$CLUSTER_NAME/role/admin" \
+            bound_service_account_names="$HELM_DEPLOYMENT_NAME" \
+            bound_service_account_namespaces="$HELM_DEPLOYMENT_NAME" \
+            policies="${CLUSTER_NAME}-read" \
+            ttl=60m
+    fi
+
+    if [[ $CONFIGURE_VCO == 'true' ]] ; then
+        ROOT_TOKEN=$(jq -r '.root_token' /tmp/recovery-keys.json)
+
+        echo "Logging into Vault..."
+        vault login - <<< "$ROOT_TOKEN"
+
+        echo "Enabling $VCO_NAME Kubernetes auth engine..."
+        vault auth enable \
+            -description="Auth engine used by Vault Config Operator (Created by vault-init script)" \
+            -path="$VCO_NAME" \
+            kubernetes
+
+        echo "Configuring $VCO_NAME Kubernetes auth engine..."
+        vault write "auth/${VCO_NAME}/config" \
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+            kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
+            kubernetes_ca_cert="@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+        echo "Gettting $VCO_NAME auth engine accessor..."
+        MOUNT_ACCESSOR=$(vault auth list -format=json | jq -r ".\"$VCO_NAME/\".accessor")
+
+        # Indenting here is important
+        # TODO: Review policy rules and see if it really needs all these perms
+        echo "Writing $VCO_NAME policy..."
+        vault policy write "$VCO_NAME" - << EOF
+    # Policy used by Vault Config Operator to create/modify Vault resources (Created by vault-init script)
+    path "*" {
+        capabilities = ["sudo", "create", "read", "update", "delete", "list"]
+    }
+
+    path "sys/*" {
+        capabilities = ["sudo", "create", "read", "update", "delete", "list"]
+    }
+    EOF
+
+        echo "Creating $VCO_NAME role..."
+        vault write \
+            "auth/${VCO_NAME}/role/admin" \
+            bound_service_account_names="vault-server" \
+            bound_service_account_namespaces="vault-server" \
+            policies="$VCO_NAME" \
+            ttl=60m
+    fi
+
+    if [[ $HA_MODE == 'true' ]] ; then
+        echo "Sleeping for 1 minute to give time for replicas to join the raft..."
+        sleep 60
+    fi
+
+    echo "Creating vault-recovery-keys secret..."
+    oc create secret generic vault-recovery-keys --from-file=/tmp/recovery-keys.json
+
+    rm /tmp/recovery-keys.json
+
+    echo "Done!"
+kind: ConfigMap
+metadata:
+  name: init-script
+  namespace: vault-server

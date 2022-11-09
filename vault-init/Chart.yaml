@@ -1,0 +1,9 @@
+apiVersion: v2
+name: custom-vault
+description: Deploy vault to OpenShift and initialize for k8s auth
+type: application
+version: 0.0.1
+dependencies:
+  - name: vault
+    version: "~0.21.0"
+    repository: "https://helm.releases.hashicorp.com"
