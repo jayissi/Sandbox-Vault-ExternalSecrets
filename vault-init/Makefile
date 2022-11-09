@@ -7,7 +7,7 @@ install:
 	@printf vault.server.route.host=vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath'={.spec.domain}') | \
 	xargs \
 	helm install \
-	    vault-server . \
+	  vault-server . \
 	    --create-namespace \
 	    --namespace vault-server \
 	    --set 
@@ -17,7 +17,7 @@ install-ha:
 	@printf vault.server.route.host=vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath'={.spec.domain}') | \
 	xargs \
 	helm install \
-	    vault-server . \
+	  vault-server . \
 	    --create-namespace \
 	    --namespace vault-server \
 	    --values values.yaml \
@@ -26,6 +26,6 @@ install-ha:
 
 uninstall:
 	helm uninstall \
-	    --namespace vault-server \
-	    vault-server
-	oc delete project vault-server
+	  vault-server \
+	    --namespace vault-server
+	@oc delete project vault-server
