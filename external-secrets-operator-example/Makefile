@@ -6,4 +6,4 @@ install:
 	@source ./deploy.sh
 
 uninstall:
-	@oc delete -f ./manifests/ --ignore-not-found=true
+	@oc delete -f ./manifests/

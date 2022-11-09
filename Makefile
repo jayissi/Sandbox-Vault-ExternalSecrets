@@ -7,7 +7,7 @@ install:
 	    --directory=./vault-init
 	make install \
 	    --directory=./external-secrets-custom-ca
-	/bin/bash -c 'sleep 90s'
+	/bin/bash -c 'sleep 2m'
 	make install \
 	    --directory=./external-secrets-operator-example
 
