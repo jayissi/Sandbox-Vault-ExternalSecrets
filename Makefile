@@ -1,9 +1,18 @@
 SHELL := /bin/bash
 
-.PHONY: install uninstall
+.PHONY: install install-ha uninstall
 
 install:
 	make install \
+	    --directory=./vault-init
+	make install \
+	    --directory=./external-secrets-custom-ca
+	/bin/bash -c 'sleep 2m'
+	make install \
+	    --directory=./external-secrets-operator-example
+
+install-ha:
+	make install-ha \
 	    --directory=./vault-init
 	make install \
 	    --directory=./external-secrets-custom-ca

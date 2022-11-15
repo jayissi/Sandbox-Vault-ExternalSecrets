@@ -45,11 +45,11 @@ vault:
   injector:
     image:
       repository: "registry.connect.redhat.com/hashicorp/vault-k8s"
-      tag: "0.17.0-ubi"
+      tag: "1.0.0-ubi"
 
     agentImage:
       repository: "registry.connect.redhat.com/hashicorp/vault"
-      tag: "1.11.2-ubi"
+      tag: "1.12.1-ubi"
 
   server:
     # extraEnvironmentVars:
@@ -58,7 +58,7 @@ vault:
       enabled: true
     image:
       repository: "registry.connect.redhat.com/hashicorp/vault"
-      tag: "1.11.2-ubi"
+      tag: "1.12.1-ubi"
     ha:
       enabled: false
     postStart:
