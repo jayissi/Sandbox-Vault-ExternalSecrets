@@ -28,6 +28,22 @@ oc exec -it -n vault-server vault-server-0 -- \
             my-app/message \
             message="Hello world!"
 
+echo "Creating Role in Vault for Kubernetes 'openshift-storage' namespace."
+oc exec -it -n vault-server vault-server-0 -- \
+            vault write \
+            "auth/kubernetes/role/demo" \
+            bound_service_account_names="default" \
+            bound_service_account_namespaces="openshift-storage" \
+            policies="kubernetes-read" \
+            ttl=60m
+
+echo "Creating 'openshift-storage/kms-key' secret in Vault."
+oc exec -it -n vault-server vault-server-0 -- \
+            vault kv put \
+            -mount=kubernetes \
+            openshift-storage/kms-key \
+            arn="<Insert_AWS_KMS_ARN>"
+
 echo "Deleting Kubernetes objects under './manifests'... (if they exist)"
 oc delete -f ./manifests --wait
 
