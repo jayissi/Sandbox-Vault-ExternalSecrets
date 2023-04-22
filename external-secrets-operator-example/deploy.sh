@@ -35,7 +35,7 @@ oc exec -it -n vault-server vault-server-0 -- \
             bound_service_account_names="default" \
             bound_service_account_namespaces="openshift-storage" \
             policies="kubernetes-read" \
-            ttl=60m
+            ttl=30d
 
 echo "Creating 'openshift-storage/kms-key' secret in Vault."
 oc exec -it -n vault-server vault-server-0 -- \
