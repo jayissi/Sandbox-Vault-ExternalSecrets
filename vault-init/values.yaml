@@ -55,7 +55,13 @@ vault:
     # extraEnvironmentVars:
     #   PAUSE_INIT: "true"
     dataStorage:
+      storageClass: gp2
       enabled: true
+
+    auditStorage:
+      storageClass: gp2
+      enabled: true
+
     image:
       repository: "registry.connect.redhat.com/hashicorp/vault"
       tag: "1.12.1-ubi"

@@ -4,7 +4,7 @@ SHELL := /bin/bash
 
 install:
 	helm dependency update
-	@printf vault.server.route.host=vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}') | \
+	@printf vault.server.route.host=vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}{"\n"}') | \
 	xargs \
 	helm install \
 	  vault-server . \
@@ -14,7 +14,7 @@ install:
 
 install-ha:
 	helm dependency update
-	@printf vault.server.route.host=vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}') | \
+	@printf vault.server.route.host=vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}{"\n"}') | \
 	xargs \
 	helm install \
 	  vault-server . \
