@@ -17,6 +17,7 @@ install:
 	    external-secrets/external-secrets \
 	    -f values.yaml \
 	    -n external-secrets \
+	    --version v0.8.1 \
 	    --set installCRDs=true
 
 uninstall:
