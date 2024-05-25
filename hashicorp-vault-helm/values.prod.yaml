@@ -11,7 +11,6 @@ server:
     route:
       enabled: true
       activeService: true 
-      host: vault.apps.cluster-qvw2l.dynamic.redhatworkshops.io
       #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
       tls: 
         termination: edge
