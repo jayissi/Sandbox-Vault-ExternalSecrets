@@ -1,0 +1,40 @@
+---
+# These overrides are appropriate defaults for deploying this chart on OpenShift
+
+injector:
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+server:
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: ocs-external-storagecluster-ceph-rbd
+    accessMode: ReadWriteOnce
+
+  auditStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: ocs-external-storagecluster-ceph-rbd
+    accessMode: ReadWriteOnce
+
+  route:
+    enabled: true
+    activeService: true 
+    host: vault.apps.cluster-qvw2l.dynamic.redhatworkshops.io
+    #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
+    tls: 
+      termination: edge

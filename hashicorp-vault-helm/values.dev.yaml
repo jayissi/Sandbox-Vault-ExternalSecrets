@@ -1,0 +1,32 @@
+---
+# These overrides are appropriate defaults for deploying this chart on OpenShift
+
+injector:
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+server:
+# More info on Vault Dev server mode: https://developer.hashicorp.com/vault/docs/concepts/dev-server
+  dev:
+    enabled: true
+
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+  route:
+    enabled: true
+    activeService: true 
+    host: vault.apps.cluster-qvw2l.dynamic.redhatworkshops.io
+    #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
+    tls: 
+      termination: edge
