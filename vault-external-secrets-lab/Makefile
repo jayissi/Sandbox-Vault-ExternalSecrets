@@ -1,9 +1,9 @@
 SHELL := /bin/bash
-VAULT_URL := $$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}')
+VAULT_URL := $$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')
 VAULT_SHELL := oc exec -n vault -ti vault-0 --
 APPROLE_SECRET := approle-vault
-ROLE_ID := $$(/usr/bin/jq -s '.[0].data.role_id' .approle-creds.txt | tr -d ='"'=)
-SECRET_ID := $$(/usr/bin/jq -s '.[1].data.secret_id' .approle-creds.txt | tr -d ='"'=)
+ROLE_ID := $$(/usr/bin/jq -s -r '.[0].data.role_id' .approle-creds.txt )
+SECRET_ID := $$(/usr/bin/jq -s -r '.[1].data.secret_id' .approle-creds.txt )
 
 .PHONY: demo clean-up
 

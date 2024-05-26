@@ -8,27 +8,24 @@ dev:
 	    --directory=./hashicorp-vault-helm
 	make install \
 	    --directory=./external-secrets-helm
-	/bin/bash -c 'sleep 10s'
 	make demo \
 	    --directory=./vault-external-secrets-lab
 
-#lab:
-#	make lab \
-#	    --directory=./hashicorp-vault-helm
-#	make install \
-#	    --directory=./external-secrets-helm
-#	/bin/bash -c 'sleep 30s'
-#	make demo \
-#	    --directory=./vault-external-secrets-lab
-#
-#prod:
-#	make prod \
-#	    --directory=./hashicorp-vault-helm
-#	make install \
-#	    --directory=./external-secrets-helm
-#	/bin/bash -c 'sleep 30s'
-#	make demo \
-#	    --directory=./vault-external-secrets-lab
+lab:
+	make lab \
+	    --directory=./hashicorp-vault-helm
+	make install \
+	    --directory=./external-secrets-helm
+	make demo \
+	    --directory=./vault-external-secrets-lab
+
+prod:
+	make prod \
+	    --directory=./hashicorp-vault-helm
+	make install \
+	    --directory=./external-secrets-helm
+	make demo \
+	    --directory=./vault-external-secrets-lab
 
 uninstall:
 	make clean-up --ignore-errors \

@@ -12,7 +12,10 @@ dev:
 	  -f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 	  -f values.dev.yaml \
 	  -n vault \
-	  --create-namespace
+	  --create-namespace \
+	  --wait \
+	  --wait-for-jobs \
+	  --timeout 60s
 
 lab:
 	helm install \
@@ -24,20 +27,28 @@ lab:
 	  -f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 	  -f values.lab.yaml \
 	  -n vault \
-	  --create-namespace
+	  --create-namespace \
+	  --wait \
+	  --wait-for-jobs \
+	  --timeout 60s
+	source vault-init-install.sh
 
 prod:
 	helm install \
 	  vault \
 	  hashicorp/vault \
-	  --set server.ha.route.host=$(VAULT_URL) \
+	  --set server.route.host=$(VAULT_URL) \
 	  --set server.dataStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 	  --set server.auditStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 	  -f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 	  -f values.lab.yaml \
 	  -f values.prod.yaml \
 	  -n vault \
-	  --create-namespace
+	  --create-namespace \
+	  --wait \
+	  --wait-for-jobs \
+	  --timeout 60s
+	source vault-init-install.sh
 
 uninstall:
 	-helm uninstall vault -n vault

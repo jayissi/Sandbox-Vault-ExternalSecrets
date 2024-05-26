@@ -1,2 +1,5 @@
 vault-external-secrets-lab/.approle-creds.txt
 .*
+*test/*
+hashicorp-vault-helm/.vault-init.txt
+hashicorp-vault-helm/test/

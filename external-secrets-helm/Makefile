@@ -7,7 +7,10 @@ install:
 	  external-secrets \
 	  external-secrets/external-secrets \
 	  -n external-secrets \
-	  --create-namespace
+	  --create-namespace \
+	  --wait \
+	  --wait-for-jobs \
+	  --timeout 60s
 
 uninstall:
 	-helm uninstall \
