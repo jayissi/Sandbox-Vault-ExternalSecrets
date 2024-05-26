@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 VAULT_URL := $$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}')
 VAULT_SHELL := oc exec -n vault -ti vault-0 --
+APPROLE_SECRET := approle-vault
 ROLE_ID := $$(/usr/bin/jq -s '.[0].data.role_id' .approle-creds.txt | tr -d ='"'=)
 SECRET_ID := $$(/usr/bin/jq -s '.[1].data.secret_id' .approle-creds.txt | tr -d ='"'=)
 
@@ -16,8 +17,13 @@ demo:
 	$(VAULT_SHELL) vault read auth/approle/role/demo/role-id -format=json > .approle-creds.txt
 	$(VAULT_SHELL) vault write -f auth/approle/role/demo/secret-id -format=json >> .approle-creds.txt
 	-oc new-project demo
-	-oc create secret generic approle-secret --from-literal=secret-id=$(SECRET_ID) -n demo
-	oc process -f demo-secret-store-template.yaml -p ROLE_ID=$(ROLE_ID) -p VAULT_URL=$(VAULT_URL) -o yaml | oc apply --wait=true -f -
+	-oc create secret generic $(APPROLE_SECRET) \
+	  --from-literal=role-id=$(ROLE_ID) \
+	  --from-literal=secret-id=$(SECRET_ID) \
+	  -n demo
+	oc process -f demo-secret-store-template.yaml \
+	  -p APPROLE_SECRET=$(APPROLE_SECRET) \
+	  -p VAULT_URL=$(VAULT_URL) -o yaml | oc apply --wait=true -f -
 	oc apply --wait=true -f demo-external-secrets.yaml
 .PHONY: demo
 

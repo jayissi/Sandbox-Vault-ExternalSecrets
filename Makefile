@@ -1,18 +1,18 @@
 SHELL := /bin/bash
 
-.PHONY: install-dev install-lab install-prod uninstall clean-demo clean-es clean-hv
+.PHONY: dev lab prod uninstall clean-demo clean-es clean-hv
 
 
-install-dev:
+dev:
 	make dev \
 	    --directory=./hashicorp-vault-helm
 	make install \
 	    --directory=./external-secrets-helm
-	/bin/bash -c 'sleep 30s'
+	/bin/bash -c 'sleep 10s'
 	make demo \
 	    --directory=./vault-external-secrets-lab
 
-#install-lab:
+#lab:
 #	make lab \
 #	    --directory=./hashicorp-vault-helm
 #	make install \
@@ -21,7 +21,7 @@ install-dev:
 #	make demo \
 #	    --directory=./vault-external-secrets-lab
 #
-#install-prod:
+#prod:
 #	make prod \
 #	    --directory=./hashicorp-vault-helm
 #	make install \
