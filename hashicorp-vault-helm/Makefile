@@ -31,7 +31,8 @@ lab:
 	  --wait \
 	  --wait-for-jobs \
 	  --timeout 60s
-	source vault-init-install.sh
+	@/bin/bash -c 'sleep 15s'
+	source ./init-install.sh
 
 prod:
 	helm install \
@@ -48,9 +49,13 @@ prod:
 	  --wait \
 	  --wait-for-jobs \
 	  --timeout 60s
-	source vault-init-install.sh
+	@/bin/bash -c 'sleep 15s'
+	source ./init-install.sh
 
 uninstall:
-	-helm uninstall vault -n vault
+	-helm uninstall vault \
+	  -n vault \
+	  --wait \
+	  --timeout 60s
 	-oc delete pvc --all -n vault 
 	-oc delete project vault

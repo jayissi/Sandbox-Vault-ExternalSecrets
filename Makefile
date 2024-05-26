@@ -1,9 +1,11 @@
 SHELL := /bin/bash
+HELM_UPDATE := helm repo update
 
 .PHONY: dev lab prod uninstall clean-demo clean-es clean-hv
 
 
 dev:
+	eval "$(HELM_UPDATE)"
 	make dev \
 	    --directory=./hashicorp-vault-helm
 	make install \
@@ -12,6 +14,7 @@ dev:
 	    --directory=./vault-external-secrets-lab
 
 lab:
+	eval "$(HELM_UPDATE)"
 	make lab \
 	    --directory=./hashicorp-vault-helm
 	make install \
