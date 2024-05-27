@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 HELM_UPDATE := helm repo update
 
-.PHONY: dev lab prod uninstall clean-demo clean-es clean-hv
+.PHONY: dev lab prod clean clean-demo clean-es clean-hv
 
 
 dev:
@@ -30,22 +30,22 @@ prod:
 	make demo \
 	    --directory=./vault-external-secrets-lab
 
-uninstall:
-	make clean-up --ignore-errors \
+clean:
+	make clean --ignore-errors \
 	    --directory=./vault-external-secrets-lab
-	make uninstall --ignore-errors \
+	make clean --ignore-errors \
 	    --directory=./external-secrets-helm
-	make uninstall --ignore-errors \
+	make clean --ignore-errors \
 	    --directory=./hashicorp-vault-helm
 
 clean-demo:
-	make clean-up --ignore-errors \
+	make clean --ignore-errors \
 	    --directory=./vault-external-secrets-lab
 
 clean-es:
-	make uninstall --ignore-errors \
+	make clean --ignore-errors \
             --directory=./external-secrets-helm
 
 clean-hv:
-	make uninstall --ignore-errors \
+	make clean --ignore-errors \
             --directory=./hashicorp-vault-helm

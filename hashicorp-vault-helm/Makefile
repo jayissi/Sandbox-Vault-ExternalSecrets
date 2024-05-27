@@ -2,7 +2,7 @@ SHELL := /bin/bash
 VAULT_URL := $(shell echo vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath --template='{.spec.domain}'))
 DEFAULT_STORAGE_CLASS := $$(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
 
-.PHONY: dev lab prod uninstall 
+.PHONY: dev lab prod clean
 
 dev:
 	helm install \
@@ -52,7 +52,7 @@ prod:
 	@/bin/bash -c 'sleep 15s'
 	source ./init-install.sh
 
-uninstall:
+clean:
 	-helm uninstall vault \
 	  -n vault \
 	  --wait \

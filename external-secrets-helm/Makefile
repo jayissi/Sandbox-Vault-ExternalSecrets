@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: install uninstall 
+.PHONY: install clean
 
 install:
 	helm install \
@@ -13,7 +13,7 @@ install:
 	  --wait-for-jobs \
 	  --timeout 60s
 
-uninstall:
+clean:
 	-helm uninstall \
 	  external-secrets \
 	  -n external-secrets

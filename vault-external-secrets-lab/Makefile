@@ -1,32 +1,11 @@
 SHELL := /bin/bash
-VAULT_URL := $$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')
-VAULT_SHELL := oc exec -n vault -ti vault-0 --
-APPROLE_SECRET := approle-vault
-ROLE_ID := $$(/usr/bin/jq -s -r '.[0].data.role_id' .approle-creds.txt )
-SECRET_ID := $$(/usr/bin/jq -s -r '.[1].data.secret_id' .approle-creds.txt )
 
-.PHONY: demo clean-up
+.PHONY: demo clean
 
 demo:
-	source demo-vault-policy.sh
-	$(VAULT_SHELL) vault kv put secret/demo \
-	  Hello="World!" foo=bar Red_Hat=Linux
-	-$(VAULT_SHELL) vault auth enable approle
-	$(VAULT_SHELL) vault write auth/approle/role/demo \
-	  token_policies="demo" period=0	
-	$(VAULT_SHELL) vault read auth/approle/role/demo/role-id -format=json > .approle-creds.txt
-	$(VAULT_SHELL) vault write -f auth/approle/role/demo/secret-id -format=json >> .approle-creds.txt
-	-oc new-project demo
-	-oc create secret generic $(APPROLE_SECRET) \
-	  --from-literal=role-id=$(ROLE_ID) \
-	  --from-literal=secret-id=$(SECRET_ID) \
-	  -n demo
-	oc process -f demo-secret-store-template.yaml \
-	  -p APPROLE_SECRET=$(APPROLE_SECRET) \
-	  -p VAULT_URL=$(VAULT_URL) -o yaml | oc apply --wait=true -f -
-	oc apply --wait=true -f demo-external-secrets.yaml
+	source ./post-install.sh
 .PHONY: demo
 
-clean-up:
+clean:
 	oc delete project demo
-.PHONY: clean-up
+.PHONY: clean
