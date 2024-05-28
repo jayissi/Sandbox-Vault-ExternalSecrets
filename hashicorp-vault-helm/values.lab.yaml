@@ -23,17 +23,14 @@ server:
     enabled: true
     size: 10Gi
     #storageClass: $(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
-    accessMode: ReadWriteOnce
 
   auditStorage:
     enabled: true
     size: 10Gi
     #storageClass: $(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
-    accessMode: ReadWriteOnce
 
   route:
     enabled: true
-    activeService: true 
     #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
     tls: 
       termination: edge

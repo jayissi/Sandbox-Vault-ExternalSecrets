@@ -4,10 +4,7 @@
 
 JQ="/usr/bin/jq"
 OC_EXEC_VAULT="oc exec -n vault -ti vault-0 --"
-APPROLE_CREDS_FILE="$PWD/.approle-creds.txt"
 APPROLE_SECRET="approle-vault"
-ROLE_ID="${JQ} -s -r '.[0].data.role_id' ${APPROLE_CREDS_FILE}"
-SECRET_ID="${JQ} -s -r '.[1].data.secret_id' ${APPROLE_CREDS_FILE}"
 VAULT_URL="oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{\"\n\"}'"
 
 
@@ -78,8 +75,10 @@ echo "--------------------------------------------------------------------------
 echo "⎈                       Create Vault RoleID and SecretID                     ⎈"
 echo "-------------------------------------------------------------------------------"
 
-eval ${OC_EXEC_VAULT} vault read auth/approle/role/demo/role-id -format=json | /usr/bin/tee ${APPROLE_CREDS_FILE}
-eval ${OC_EXEC_VAULT} vault write -f auth/approle/role/demo/secret-id -format=json | /usr/bin/tee -a ${APPROLE_CREDS_FILE}
+ROLE_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault read auth/approle/role/demo/role-id -format=json | ${JQ} -r '.')
+SECRET_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault write -f auth/approle/role/demo/secret-id -format=json | ${JQ} -r '.')
+
+echo ${ROLE_ID_PAYLOAD} ${SECRET_ID_PAYLOAD} | ${JQ} -a
 
 
 printf "\n\n\n"
@@ -96,12 +95,16 @@ echo "namespace/demo created"
 # Update secret if ran multiple times
 oc delete -n demo secret ${APPROLE_SECRET} > /dev/null 2>&1
 oc create secret generic ${APPROLE_SECRET} \
-  --from-literal=role-id=$(eval ${ROLE_ID}) \
-  --from-literal=secret-id=$(eval ${SECRET_ID}) \
+  --from-literal=mount-type=$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.mount_type') \
+  --from-literal=role-id=$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.data.role_id') \
+  --from-literal=secret-id=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id') \
+  --from-literal=secret-id-accessor=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_accessor') \
+  --from-literal=secret-id-num-uses=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_num_uses') \
+  --from-literal=secret-id-ttl=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_ttl') \
   -n demo
 
 
-printf "\n\n\n"
+printf "\n\n"
 
 
 echo "-------------------------------------------------------------------------------"

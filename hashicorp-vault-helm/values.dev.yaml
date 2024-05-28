@@ -25,7 +25,6 @@ server:
 
   route:
     enabled: true
-    activeService: true 
     #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
     tls: 
       termination: edge
