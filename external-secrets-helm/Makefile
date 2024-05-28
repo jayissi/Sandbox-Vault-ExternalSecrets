@@ -16,7 +16,7 @@ install:
 clean:
 	-helm uninstall \
 	  external-secrets \
-	  -n external-secrets
+	  -n external-secrets \
 	  --wait \
 	  --timeout 60s
 	-oc delete project external-secrets
