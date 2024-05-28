@@ -8,14 +8,14 @@ dev:
 	helm install \
 	  vault \
 	  hashicorp/vault \
-          --set server.route.host=$(VAULT_URL) \
+	  --set server.route.host=$(VAULT_URL) \
+	  -f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 	  -f values.dev.yaml \
 	  -n vault \
 	  --create-namespace \
 	  --wait \
 	  --wait-for-jobs \
 	  --timeout 60s
-	  #-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 
 lab:
 	helm install \
@@ -24,6 +24,7 @@ lab:
 	  --set server.route.host=$(VAULT_URL) \
 	  --set server.dataStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 	  --set server.auditStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
+	  -f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 	  -f values.lab.yaml \
 	  -n vault \
 	  --create-namespace \
@@ -32,7 +33,6 @@ lab:
 	  --timeout 60s
 	@/bin/bash -c 'sleep 15s'
 	source ./init-install.sh
-	  #-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 
 prod:
 	helm install \
@@ -41,6 +41,7 @@ prod:
 	  --set server.route.host=$(VAULT_URL) \
 	  --set server.dataStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 	  --set server.auditStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
+	  -f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 	  -f values.lab.yaml \
 	  -f values.prod.yaml \
 	  -n vault \
@@ -50,7 +51,6 @@ prod:
 	  --timeout 60s
 	@/bin/bash -c 'sleep 15s'
 	source ./init-install.sh
-	  #-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 
 clean:
 	-helm uninstall vault \
