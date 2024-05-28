@@ -6,12 +6,12 @@ install:
 	helm install \
 	  external-secrets \
 	  external-secrets/external-secrets \
-	  -f https://github.com/external-secrets/external-secrets/raw/main/deploy/charts/external-secrets/values.yaml \
 	  -n external-secrets \
 	  --create-namespace \
 	  --wait \
 	  --wait-for-jobs \
 	  --timeout 60s
+	  #-f https://github.com/external-secrets/external-secrets/raw/main/deploy/charts/external-secrets/values.yaml \
 
 clean:
 	-helm uninstall \
