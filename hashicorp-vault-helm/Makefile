@@ -1,10 +1,13 @@
 SHELL := /bin/bash
+HELM_UPDATE_VAULT := helm repo update hashicorp
 VAULT_URL := $(shell echo vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath --template='{.spec.domain}'))
 DEFAULT_STORAGE_CLASS := $$(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
 
 .PHONY: dev lab prod clean
 
 dev:
+	helm repo add hashicorp https://helm.releases.hashicorp.com
+	eval "$(HELM_UPDATE_VAULT)"
 	helm install \
 	  vault \
 	  hashicorp/vault \
@@ -18,6 +21,8 @@ dev:
 	  --timeout 60s
 
 lab:
+	helm repo add hashicorp https://helm.releases.hashicorp.com
+	eval "$(HELM_UPDATE_VAULT)"
 	helm install \
 	  vault \
 	  hashicorp/vault \
@@ -35,6 +40,8 @@ lab:
 	source ./init-install.sh
 
 prod:
+	helm repo add hashicorp https://helm.releases.hashicorp.com
+	eval "$(HELM_UPDATE_VAULT)"
 	helm install \
 	  vault \
 	  hashicorp/vault \
@@ -45,6 +52,7 @@ prod:
 	  -f values.lab.yaml \
 	  -f values.prod.yaml \
 	  -n vault \
+	  --version 0.28.0 \
 	  --create-namespace \
 	  --wait \
 	  --wait-for-jobs \

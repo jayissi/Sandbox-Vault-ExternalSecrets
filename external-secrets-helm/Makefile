@@ -1,8 +1,11 @@
 SHELL := /bin/bash
+HELM_UPDATE_ESO := helm repo update external-secrets
 
 .PHONY: install clean
 
 install:
+	helm repo add external-secrets https://charts.external-secrets.io
+	eval "$(HELM_UPDATE_ESO)"
 	helm install \
 	  external-secrets \
 	  external-secrets/external-secrets \
