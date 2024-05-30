@@ -4,8 +4,6 @@ SHELL := /bin/bash
 
 demo:
 	source ./post-install.sh
-.PHONY: demo
 
 clean:
 	oc delete project demo
-.PHONY: clean

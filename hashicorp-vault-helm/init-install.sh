@@ -65,13 +65,14 @@ do
     (( INIT_COUNTER++ ))
     if (( ${INIT_COUNTER} <= 1 ));
     then
-      if (( $i > 0 ));
+      if (( ${i} > 0 ));
       then
         echo "-------------------------------------------------------------------------------"
-        echo "⎈         Loop Count  ${LOOP_COUNTER}:  Joining server 'vault-$i' to the cluster            ⎈"
+        echo "⎈         Loop Count  ${LOOP_COUNTER}:  Joining server 'vault-${i}' to the cluster            ⎈"
         echo "-------------------------------------------------------------------------------"
 
-        oc exec -n vault -ti vault-$i -- vault operator raft join http://vault-0.vault-internal:8200
+        oc exec -n vault -ti vault-${i} -- vault operator raft join http://vault-0.vault-internal:8200
+
         printf "\n"
       fi
     elif (( INIT_COUNTER == UNSEAL_THRESHOLD ));
@@ -79,52 +80,53 @@ do
       INIT_COUNTER=0
     fi
     echo "-------------------------------------------------------------------------------"
-    echo "⎈       Loop Count ${LOOP_COUNTER}: Unsealing pod 'vault-$i' using unseal key index: $x      ⎈"
+    echo "⎈       Loop Count ${LOOP_COUNTER}: Unsealing pod 'vault-${i}' using unseal key index: $x      ⎈"
     echo "-------------------------------------------------------------------------------"
 
+    oc exec -n vault -ti vault-${i} -- vault operator unseal $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r ".unseal_keys_b64[$x]")
+
+    printf "\n\n\n"
+
     (( LOOP_COUNTER++ ))
-    oc exec -n vault -ti vault-$i -- vault operator unseal $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r ".unseal_keys_b64[$x]")
     if (( LOOP_COUNTER == UNSEAL_THRESHOLD + 1 ));
     then
+      echo "-------------------------------------------------------------------------------"
+      echo "⎈                   First login via Root Token on 'vault-${i}'                  ⎈"
+      echo "-------------------------------------------------------------------------------"
+
+      oc exec -n vault -ti vault-${i} -- vault login $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')
+
+      printf "\n\n\n"
+      
+      echo "-------------------------------------------------------------------------------"
+      echo "⎈               Enable Audit File and Socket Logging on 'vault-${i}'            ⎈"
+      echo "-------------------------------------------------------------------------------"
+
+      #
+      # More about File and Socket audit
+      # https://github.com/hashicorp/vault/blob/main/website/content/docs/audit/file.mdx
+      # https://github.com/hashicorp/vault/blob/main/website/content/docs/audit/socket.mdx
+      # https://github.com/hashicorp/vault/blob/main/enos/modules/vault_cluster/scripts/enable-audit-devices.sh
+      #
+
+      oc exec -n vault -ti vault-${i} -- vault audit enable -path="vault-${i}_file_audit_" file \
+        format=json \
+        prefix="ocp_vault-${i}_" \
+        file_path=/vault/audit/vault_audit.log
+
+      oc exec -n vault -ti vault-${i} -- vault audit enable -path="vault-${i}_socket_audit_" socket \
+        address="127.0.0.1:8200" \
+        socket_type=tcp
+      
       LOOP_COUNTER=1
+
+      printf "\n\n\n"
     fi
-    printf "\n\n\n"
   done
 done
 
 
-for i in $(eval ${VAULT_POD_COUNT});
-do
-  echo "-------------------------------------------------------------------------------"
-  echo "⎈                   First login via Root Token on 'vault-$i'                  ⎈"
-  echo "-------------------------------------------------------------------------------"
-
-  oc exec -n vault -ti vault-$i -- vault login $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')
-done
 unset VAULT_KEYS_PAYLOAD
-
-
-printf "\n\n\n"
-
-
-for i in $(eval ${VAULT_POD_COUNT});
-do
-  echo "-------------------------------------------------------------------------------"
-  echo "⎈               Enable Audit File and Socket Logging on 'vault-$i'            ⎈"
-  echo "-------------------------------------------------------------------------------"
-
-  oc exec -n vault -ti vault-$i -- vault audit enable -path="vault-${i}_file_audit_" file \
-    format=json \
-    prefix="ocp_vault-${i}_" \
-    file_path=/vault/audit/vault_audit.log
-
-  oc exec -n vault -ti vault-$i -- vault audit enable -path="vault-${i}_socket_audit_" socket \
-    address="127.0.0.1:8200" \
-    socket_type=tcp
-done
-
-
-printf "\n\n\n"
 
 
 echo "-------------------------------------------------------------------------------"
