@@ -69,7 +69,7 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
    ```
 
 > [!WARNING]
-> This example uses ***Linux x86_64*** processor architecture.
+> This example uses ***Linux x86_64*** processor architecture.     
 > Please find the appropriate architecture for your [Helm command](https://github.com/helm/helm/releases/latest).
 
 2. **Install RPMs**
@@ -100,7 +100,8 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
    VAULT_ENV=dev  # or VAULT_ENV=lab or VAULT_ENV=prod
    ```
   > [!NOTE]
-  > This is will configure Hashicorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server). Vault will be automatically initialized and unsealed.
+  > This is will configure Hashicorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
+  > Vault will be automatically initialized and unsealed.
 
 ### **Execute Makefile**
 
