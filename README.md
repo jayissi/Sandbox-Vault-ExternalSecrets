@@ -9,14 +9,20 @@
 2. [Summary](#summary)
 3. [Requirements](#requirements)
 4. [Installation and Setup](#installation-and-setup)
-5. [Under The Hood](#under-the-hood)
+   - [Prerequisites](#prerequisites)
+   - [Clone the Repository](#clone-the-repository)
+   - [Define the environment](#define-the-environment)
+   - [Execute Makefile](#execute-makefile)
+   - [Trust But Verify](#trust-but-verify)
+6. [Under The Hood](#under-the-hood)
    - [Vault Deployment](#vault-deployment)
    - [Vault Unsealing](#vault-unsealing)
    - [External Secrets Operator](#external-secrets-operator)
    - [Demo secret Creation in Vault](#demo-secret-creation-in-vault)
    - [Syncing Vault Secrets to OpenShift](#syncing-vault-secrets-to-openshift)
 7. [How It All Comes Together](#how-it-all-comes-together)
-8. [License](#license)
+8. [Uninstall](#uninstall)
+9. [License](#license)
 
 
 ## Introduction
@@ -45,36 +51,66 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
 - **make**: The `make` command is required to execute the `Makefile` tasks. [Make Installation Guide](https://www.gnu.org/software/make/)
 - **jq**: A command-line tool for processing JSON. It’s used to parse and manipulate JSON data in scripts. [jq Installation Guide](https://stedolan.github.io/jq/download/)
 - **git**: Git is required to clone the repository. [Git Installation Guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-- **Access to Helm Repositories**: Add the HashiCorp and External-Secrets Helm repository to your Helm configuration:
-  ```bash
-  helm repo add hashicorp https://helm.releases.hashicorp.com
-  helm repo add external-secrets https://charts.external-secrets.io
-  ```
+- **Access to Helm Repositories**: Add the [HashiCorp](https://helm.releases.hashicorp.com) and [External-Secrets](https://charts.external-secrets.io) Helm repository to your Helm configuration.
 
 ## Installation and Setup
 
-To deploy and configure the components, follow these steps:
+> [!IMPORTANT]
+> This project *presumes* the availability of a **fully functional and operational OpenShift cluster**.     
+> Furthermore, you **will need elevated permissions** in the cluster to perform these actions.
 
-1. **Clone the Repository**:  Clone the repository and navigate into the project directory.
+### Prerequisites
+
+1. **Install Helm**
+   ```bash
+   mkdir $HOME/bin/
+   curl -fqsLk https://get.helm.sh/helm-v3.17.0-linux-amd64.tar.gz | tar xvz -C $HOME/bin/
+   mv $HOME/bin/linux-amd64/helm $HOME/bin/ && rm -r $HOME/bin/linux-amd64
+   ```
+
+> [!WARNING]
+> This example uses ***Linux x86_64*** processor architecture.
+> Please find the appropriate architecture for your [Helm command](https://github.com/helm/helm/releases/latest).
+
+2. **Install RPMs**
+   ```bash
+   sudo dnf install -y make jq git
+   ```
+
+
+### **Clone the Repository**
+
+   Clone the repository and navigate into the project directory.
    ```bash
    git clone https://github.com/jayissi/Sandbox-Vault-ExternalSecrets.git
    cd Sandbox-Vault-ExternalSecrets
    ```
-2. **Define the environment**: Set the appropriate variable to either `dev`, `lab`, or `prod`.     
+
+### **Define the environment**
+
+|  VAULT_ENV  | Description |
+|-------------|-------------|
+|  dev  | Deploy 1 Vault instance into "Dev" server mode. |
+|  lab  | Deploy 1 Vault instance that auto initialize and unseal with auiting. |
+|  prod | Deploys 3 HA Vault instances that auto initialize and unseal with auiting. |
+
+   Set the local variable **VAULT_ENV** to either `dev`, `lab`, or `prod`.     
    This determines if Vault will be initialized and unsealed during the deployment.
    ```bash
-   export VAULT_ENV=dev  # or export ENV=prod or export ENV=lab
+   VAULT_ENV=dev  # or VAULT_ENV=lab or VAULT_ENV=prod
    ```
   > [!NOTE]
-  > This is will configure Hashicorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
-  > Vault will be automatically initialized and unsealed.
+  > This is will configure Hashicorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server). Vault will be automatically initialized and unsealed.
 
-3. **Execute Makefile**: Execute the `Makefile` to initiate the deployment process.
+### **Execute Makefile**
+
+   Execute the `Makefile` program to initiate the deployment process.
    ```bash
    make $VAULT_ENV
    ```
 
-4. Verify that the deployment was successful:
+### **Trust But Verify**
+
    - Ensure that the Vault pods are running and unsealed, if needed.
    - Check that External Secrets Operator is active.
    - Confirm that the demo secret is accessible in OpenShift.
@@ -82,7 +118,7 @@ To deploy and configure the components, follow these steps:
 
 ## Under The Hood
 
-This repository automates the deployment and configuration of **HashiCorp Vault** and the **External Secrets Operator** on OpenShift. It includes a `Makefile` that orchestrates the entire process from deploying Vault to introducing secrets to OpenShift. The following key tasks are performed:
+This repository automates the deployment and configuration of **HashiCorp Vault** and **External Secrets Operator** on OpenShift. It includes a `Makefile` that orchestrates the entire process from deploying Vault to introducing secrets to OpenShift. The following key tasks are performed:
 
 ### **Vault Deployment**:
 - **What it is**: HashiCorp Vault is a tool for managing secrets, sensitive data, and encryption. In this project, Vault is deployed using its official Helm chart.
@@ -116,6 +152,14 @@ This repository automates the deployment and configuration of **HashiCorp Vault*
 3. **External Secrets Operator is installed**: External Secrets Operator is installed via Helm to manage the synchronization of secrets from Vault to OpenShift.
 4. **Demo secrets are created in Vault**: Vault is populated with demo secrets that represent real-world credentials and data.
 5. **Secrets are synchronized to OpenShift**: External Secrets Operator automatically syncs Vault secrets as Kubernetes Secrets in OpenShift, making them available for use by OpenShift.
+
+
+## Uninstall
+
+To uninstall the project, run the following command:
+```bash
+make clean
+```
 
 
 ## License
