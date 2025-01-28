@@ -38,7 +38,7 @@ The project offers an automated approach to:
 - Deploy HashiCorp Vault on OpenShift via Helm.
 - Unseal Vault based on the specified environment.
 - Install External Secrets Operator to synchronize secrets from Vault to OpenShift.
-- Populate Vault with demo secret
+- Populate Vault with demo secret.
 - Configure External Secrets Operator to introduce Vault demo secret into OpenShift.
 
 ## Requirements
@@ -51,7 +51,7 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
 - **make**: The `make` command is required to execute the `Makefile` tasks. [Make Installation Guide](https://www.gnu.org/software/make/)
 - **jq**: A command-line tool for processing JSON. It’s used to parse and manipulate JSON data in scripts. [jq Installation Guide](https://stedolan.github.io/jq/download/)
 - **git**: Git is required to clone the repository. [Git Installation Guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-- **Access to Helm Repositories**: Add the [HashiCorp](https://helm.releases.hashicorp.com) and [External-Secrets](https://charts.external-secrets.io) Helm repository to your Helm configuration.
+- **Access to Helm Repositories**: Ensure your server can reach [HashiCorp](https://helm.releases.hashicorp.com) and [External-Secrets](https://charts.external-secrets.io) Helm repository.
 
 ## Installation and Setup
 
