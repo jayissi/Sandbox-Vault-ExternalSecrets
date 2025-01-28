@@ -4,8 +4,26 @@
 ![Supported Platforms: RHEL | Linux](https://img.shields.io/badge/Supported%20Platforms-RHEL%20%7C%20Linux-EE0000)
 ![Helm](https://img.shields.io/badge/Helm-v3.12%2B-blue.svg)
 
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Summary](#summary)
+3. [Requirements](#requirements)
+4. [Installation and Setup](#installation-and-setup)
+5. [Under The Hood](#under-the-hood)
+   - [Vault Deployment](#vault-deployment)
+   - [Vault Unsealing](#vault-unsealing)
+   - [External Secrets Operator](#external-secrets-operator)
+   - [Demo secret Creation in Vault](#demo-secret-creation-in-vault)
+   - [Syncing Vault Secrets to OpenShift](#syncing-vault-secrets-to-openshift)
+7. [How It All Comes Together](#how-it-all-comes-together)
+8. [License](#license)
+
+
+## Introduction
+
 This repository automates the deployment and configuration of HashiCorp Vault and External Secrets Operator (ESO) on OpenShift. 
 It provides a streamlined process to set up Vault using Helm, unsealing it based on the environment (`lab` or `prod`), install External Secrets Operator via Helm, and finally creates a demo secret within Vault to be accessed in OpenShift.
+
 
 ## Summary
 
@@ -33,7 +51,7 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
   helm repo add external-secrets https://charts.external-secrets.io
   ```
 
-## Get Started
+## Installation and Setup
 
 To deploy and configure the components, follow these steps:
 
