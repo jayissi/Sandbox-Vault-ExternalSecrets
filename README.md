@@ -27,7 +27,7 @@
 
 ## Introduction
 
-This repository automates the deployment and configuration of HashiCorp Vault and External Secrets Operator (ESO) on OpenShift. 
+This repository automates the deployment and configuration of [HashiCorp Vault](https://github.com/hashicorp/vault-helm) and [External Secrets Operator](https://github.com/external-secrets/external-secrets) (ESO) on OpenShift. 
 It provides a streamlined process to set up HashiCorp Vault using Helm, unsealing it based on the environment (`lab` or `prod`), install External Secrets Operator via Helm, and finally creates a demo secret within HashiCorp Vault to be accessed in OpenShift.
 
 
@@ -54,6 +54,11 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
 - **Access to Helm Repositories**: Ensure your server can reach [HashiCorp](https://helm.releases.hashicorp.com) and [External-Secrets](https://charts.external-secrets.io) Helm repository.
 
 ## Installation and Setup
+
+Refer to the official documentation for further details or advanced configurations:
+
+- [HashiCorp Vault Documentation](https://developer.hashicorp.com/vault/docs)
+- [External Secrets Operator Documentation](https://external-secrets.io/)
 
 > [!IMPORTANT]
 > This project *presumes* the availability of a **fully functional and operational OpenShift cluster**.     
@@ -132,7 +137,7 @@ This repository automates the deployment and configuration of **HashiCorp Vault*
 - **Why it’s needed**: HashiCorp Vault must be unsealed to allow applications to interact with it and retrieve stored secrets. This step ensures that the HashiCorp Vault instance is secure and operational.
 
 ### **External Secrets Operator**:
-- **What it is**: External Secrets Operator is a tool that synchronizes secrets between external secret stores (like HashiCorp Vault) and Kubernetes/Openshift.
+- **What it is**: External Secrets Operator is a tool that synchronizes secrets between external secret stores (like HashiCorp Vault) and Kubernetes/OpenShift.
 - **How it works**: The `Makefile` installs External Secrets Operator via its Helm chart. Once deployed, this operator ensures that secrets from HashiCorp Vault are automatically created as Kubernetes Secrets in OpenShift. It monitors HashiCorp Vault for changes and ensures that secrets are kept up to date in the OpenShift cluster.
 - **Why it’s needed**: This operator makes it easy to use HashiCorp Vault-managed secrets in OpenShift. It abstracts the complexity of manually managing secrets and makes it easy to access and rotate secrets in a secure and automated way.
 
@@ -168,9 +173,3 @@ make clean
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 The GNU General Public License v3.0 is a free, copyleft license for software and other kinds of works. It ensures that you have the freedom to share and change all versions of the program, making sure it remains free software for all its users. For more information, please refer to the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html).
-
-
-Refer to the official documentation for further details or advanced configurations:
-
-- [HashiCorp Vault Documentation](https://developer.hashicorp.com/vault/docs)
-- [External Secrets Operator Documentation](https://external-secrets.io/)
