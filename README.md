@@ -165,7 +165,7 @@ make clean
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](https://www.gnu.org/licenses/gpl-3.0.txt) file for details.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 The GNU General Public License v3.0 is a free, copyleft license for software and other kinds of works. It ensures that you have the freedom to share and change all versions of the program, making sure it remains free software for all its users. For more information, please refer to the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
