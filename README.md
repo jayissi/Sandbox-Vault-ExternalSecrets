@@ -92,7 +92,7 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
 |-------------|-------------|
 |  dev  | Deploy 1 Vault instance into "Dev" server mode. |
 |  lab  | Deploy 1 Vault instance that auto initialize and unseal with auiting. |
-|  prod | Deploys 3 HA Vault instances that auto initialize and unseal with auiting. |
+|  prod | Deploy 3 HA Vault instances that auto initialize and unseal with auiting. |
 
    Set the local variable **VAULT_ENV** to either `dev`, `lab`, or `prod`.     
    This determines if Vault will be initialized and unsealed during the deployment.
@@ -100,7 +100,7 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
    VAULT_ENV=dev  # or VAULT_ENV=lab or VAULT_ENV=prod
    ```
   > [!NOTE]
-  > This is will configure Hashicorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
+  > This will configure Hashicorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
   > Vault will be automatically initialized and unsealed.
 
 ### **Execute Makefile**
@@ -113,7 +113,7 @@ Before executing the provided `Makefile`, ensure the following prerequisites are
 ### **Trust But Verify**
 
    - Ensure that the Vault pods are running and unsealed, if needed.
-   - Check that External Secrets Operator is active.
+   - Check that External Secrets Operator pods are active.
    - Confirm that the demo secret is accessible in OpenShift.
 
 
