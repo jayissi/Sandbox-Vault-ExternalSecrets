@@ -93,7 +93,7 @@ For advanced configurations, refer to:
    ```
 ---
 
-### **Clone the Repository**
+### Clone the Repository
 
    Clone the repository and navigate into the project directory.
 
@@ -103,7 +103,7 @@ For advanced configurations, refer to:
    ```
 ---
 
-### **Define the environment**
+### Define the environment
 
 Set the `VAULT_ENV` variable based on your target environment:
 
@@ -127,7 +127,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ---
 
-### **Execute Makefile**
+### Execute Makefile
 
    Execute the `Makefile` to deploy the environment:
    
@@ -137,38 +137,90 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ---
 
-## **Trust But Verify**
+## Trust But Verify
 
 
-  Ensure that the HashiCorp Vault pods are running.
+### Verify HashiCorp Vault
 
+  Confirm vault pods are running
 
-<br>
+  ```bash
+  oc get pods -n vault -l app.kubernetes.io/name=vault
+  ```
 
-  Verify External Secrets Operator resources are healthy.
+<p align="center">
+    <img src="images/vault/verify-vault-pods.png" align="center" alt="external-secrets">
+</p>
+
+  Verify vault status
+
+  ```bash
+  for pod in $(oc get pods -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}'); do
+    echo "Status for $pod:"
+    oc exec -n vault $pod -- vault status
+    echo "---------------------------"
+  done
+  ```
+
+<p align="center">
+    <img src="images/vault/verify-vault-status.png" align="center" alt="external-secrets">
+</p>
+
+  List the raft peers in vault cluster
+
+  ```bash
+  oc exec -n vault vault-0 -- vault operator raft list-peers
+  ```
+
+<p align="center">
+    <img src="images/vault/verify-vault-raft-peers.png" align="center" alt="external-secrets">
+</p>
+
+### Verify External Secrets Operator
+
+  Confirm external-secrets pods are running
 
   ```bash
   oc get pods -n external-secrets
+  ```
+
+<p align="center">
+    <img src="images/eso/verify-external-secrets-pods.png" align="center" alt="external-secrets">
+</p>
+
+  Validate secret store status is true
+
+  ```bash
   oc get secretstores.external-secrets.io vault -n demo -o jsonpath='{.status.conditions}' | jq
+  ```
+
+<p align="center">
+    <img src="images/eso/verify-secret-store-status.png" align="center" alt="external-secrets">
+</p>
+
+ Verify external secrets secret is synced 
+
+  ```bash
   oc get externalsecrets.external-secrets.io vault -n demo -o json | jq '.status | {binding, conditions}'
   ```
 
 <p align="center">
-    <img src="images/verify-eso-resources.png" align="center" alt="external-secrets">
+    <img src="images/eso/verify-external-secrets-sync.png" align="center" alt="external-secrets">
 </p>
 
 
-<br>
+### Validate demo secret content in OpenShift
 
-  Confirm demo secrets are accessible within OpenShift
+  Display the decoded contents of `secret/demo`
 
   ```bash 
   oc get secret demo -n demo -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key): \(.value | @base64d)"'
   ```
 
 <p align="center">
-    <img src="images/confirm-secret-synchronization.png" width="30%" align="center" alt="deployment-success">
+    <img src="images/secret-sync/verify-demo-secret-content.png" align="center" alt="deployment-success">
 </p>
+
 
 ---
 
@@ -213,7 +265,7 @@ This repository automates the deployment and configuration of **HashiCorp Vault*
 
 ---
 
-## **How It All Comes Together**
+## How It All Comes Together
 
 1. **Deploy Vault**: via Helm chart, HashiCorp Vault is deployed to your OpenShift cluster.
 2. **Unseal Vault**: After deployment, HashiCorp Vault is unsealed automatically.
