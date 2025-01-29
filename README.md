@@ -142,15 +142,21 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ### Verify HashiCorp Vault
 
+<br>
+
   Confirm vault pods are running
 
   ```bash
   oc get pods -n vault -l app.kubernetes.io/name=vault
   ```
+<br>
 
 <p align="center">
     <img src="images/vault/verify-vault-pods.png" align="center" alt="external-secrets">
 </p>
+
+<br>
+<br>
 
   Verify vault status
 
@@ -162,9 +168,14 @@ Set the `VAULT_ENV` variable based on your target environment:
   done
   ```
 
+<br>
+
 <p align="center">
     <img src="images/vault/verify-vault-status.png" align="center" alt="external-secrets">
 </p>
+
+<br>
+<br>
 
   List the raft peers in vault cluster
 
@@ -172,21 +183,31 @@ Set the `VAULT_ENV` variable based on your target environment:
   oc exec -n vault vault-0 -- vault operator raft list-peers
   ```
 
+<br>
+
 <p align="center">
     <img src="images/vault/verify-vault-raft-peers.png" align="center" alt="external-secrets">
 </p>
 
+<br>
+
 ### Verify External Secrets Operator
+
+<br>
 
   Confirm external-secrets pods are running
 
   ```bash
   oc get pods -n external-secrets
   ```
+<br>
 
 <p align="center">
     <img src="images/eso/verify-external-secrets-pods.png" align="center" alt="external-secrets">
 </p>
+
+<br>
+<br>
 
   Validate secret store status is true
 
@@ -194,9 +215,14 @@ Set the `VAULT_ENV` variable based on your target environment:
   oc get secretstores.external-secrets.io vault -n demo -o jsonpath='{.status.conditions}' | jq
   ```
 
+<br>
+
 <p align="center">
     <img src="images/eso/verify-secret-store-status.png" align="center" alt="external-secrets">
 </p>
+
+<br>
+<br>
 
  Verify external secrets secret is synced 
 
@@ -204,12 +230,17 @@ Set the `VAULT_ENV` variable based on your target environment:
   oc get externalsecrets.external-secrets.io vault -n demo -o json | jq '.status | {binding, conditions}'
   ```
 
+<br>
+
 <p align="center">
     <img src="images/eso/verify-external-secrets-sync.png" align="center" alt="external-secrets">
 </p>
 
+<br>
 
 ### Validate demo secret content in OpenShift
+
+<br>
 
   Display the decoded contents of `secret/demo`
 
@@ -217,10 +248,14 @@ Set the `VAULT_ENV` variable based on your target environment:
   oc get secret demo -n demo -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key): \(.value | @base64d)"'
   ```
 
+<br>
+<br>
+
 <p align="center">
     <img src="images/secret-sync/verify-demo-secret-content.png" align="center" alt="deployment-success">
 </p>
 
+<br>
 
 ---
 
