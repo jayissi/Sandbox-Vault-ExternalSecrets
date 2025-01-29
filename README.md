@@ -13,7 +13,7 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
 ## Table of Contents
 1. [Summary](#summary)
 2. [Requirements](#requirements)
-3. [Installation and Setup](#installation-and-setup)
+3. [Installation and Configuration](#installation-and-configuration)
    - [Prerequisites](#prerequisites)
    - [Clone the Repository](#clone-the-repository)
    - [Define the environment](#define-the-environment)
@@ -22,13 +22,13 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
    - [Verify HashiCorp Vault](#verify-hashicorp-vault)
    - [Verify External Secrets Operator](#verify-external-secrets-operator)
    - [Validate demo secret content in OpenShift](#validate-demo-secret-content-in-openshift)
-5. [Under The Hood](#under-the-hood)
+5. [How It All Comes Together](#how-it-all-comes-together)
+6. [Architecture Overview](#architecture-overview)
    - [Vault Deployment](#vault-deployment)
    - [Vault Unsealing](#vault-unsealing)
    - [External Secrets Operator](#external-secrets-operator)
    - [Demo secret Creation in Vault](#demo-secret-creation-in-vault)
    - [Syncing Vault Secrets to OpenShift](#syncing-vault-secrets-to-openshift)
-6. [How It All Comes Together](#how-it-all-comes-together)
 7. [Uninstall](#uninstall)
 8. [License](#license)
 
@@ -36,12 +36,14 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
 
 ## Summary
 
-This repository streamlines the deployment and configuration of HashiCorp Vault and External Secrets Operator (ESO) within OpenShift clusters. By automating these processes, users can securely manage secrets and synchronize them seamlessly with OpenShift. Key features include:
+In modern DevOps practices, managing sensitive information such as API keys, passwords, and certificates securely is critical. This project provides a hands-on example of the deployment and configuration of HashiCorp Vault and External Secrets Operator (ESO) within an OpenShift cluster. By automating these processes, users can securely manage secrets and synchronize them seamlessly with OpenShift. Key features include:
 
 - Deploying HashiCorp Vault via Helm.  
 - Initializing and unsealing HashiCorp Vault automatically based on specific environments (`lab` or `prod`).  
 - Installing External Secrets Operator to enable secret synchronization from HashiCorp Vault to OpenShift.  
 - Demonstrating real-world scenarios with a pre-configured demo secret.
+
+This setup is ideal for developers, DevOps engineers, and platform teams looking to implement secure and scalable secrets management in their infrastructure.
 
 ---
 
@@ -59,7 +61,7 @@ Before proceeding, ensure the following prerequisites are met:
 
 ---
 
-## Installation and Setup
+## Installation and Configuration
 
 For advanced configurations, refer to:  
 - [HashiCorp Vault Documentation](https://developer.hashicorp.com/vault/docs)  
@@ -120,13 +122,13 @@ Set the `VAULT_ENV` variable based on your target environment:
    Example:
    
    ```bash
-   export VAULT_ENV=dev  # Options: dev, lab, prod
+   export VAULT_ENV=prod  # Options: 'dev', 'lab', or 'prod'
    ```
 <br>
 
   > [!NOTE]
-  > This will configure HashiCorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
-  > HashiCorp Vault will be automatically initialized and unsealed.
+  > `dev` will configure HashiCorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
+  > Vault will be automatically initialized and unsealed.
 
 ---
 
@@ -147,7 +149,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 <br>
 
-  Confirm vault pods are running
+  1. Confirm vault pods are running
 
   ```bash
   oc get pods -n vault -l app.kubernetes.io/name=vault
@@ -161,7 +163,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 <br>
 <br>
 
-  Verify vault status
+  2. Verify vault status
 
   ```bash
   for pod in $(oc get pods -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}'); do
@@ -180,7 +182,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 <br>
 <br>
 
-  List the raft peers in vault cluster
+  3. List the raft peers in vault cluster
 
   ```bash
   oc exec -n vault vault-0 -- vault operator raft list-peers
@@ -198,7 +200,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 <br>
 
-  Confirm external-secrets pods are running
+  1. Confirm external-secrets pods are running
 
   ```bash
   oc get pods -n external-secrets
@@ -212,7 +214,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 <br>
 <br>
 
-  Validate secret store status is true
+  2. Validate secret store status is true
 
   ```bash
   oc get secretstores.external-secrets.io vault -n demo -o jsonpath='{.status.conditions}' | jq
@@ -227,7 +229,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 <br>
 <br>
 
- Verify external secrets secret is synced 
+ 3. Verify external secrets secret is synced 
 
   ```bash
   oc get externalsecrets.external-secrets.io vault -n demo -o json | jq '.status | {binding, conditions}'
@@ -245,7 +247,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 <br>
 
-  Display the decoded contents of `secret/demo`
+  1. Display the decoded contents of `secret/demo`
 
   ```bash 
   oc get secret demo -n demo -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key): \(.value | @base64d)"'
@@ -262,47 +264,6 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ---
 
-## Under The Hood
-
-This repository automates the deployment and configuration of **HashiCorp Vault** and **External Secrets Operator** on OpenShift. It includes a `Makefile` that orchestrates the entire process from deploying HashiCorp Vault to introducing secrets to OpenShift. The following key tasks are performed:
-
-<br>
-
-### **Vault Deployment**:
-- **What it is**: HashiCorp Vault is a tool for managing secrets, sensitive data, and encryption. In this project, HashiCorp Vault is deployed using its official Helm chart.
-- **How it works**: The `Makefile` automates the deployment of HashiCorp Vault using Helm. HashiCorp Vault is deployed into the OpenShift cluster, and the necessary configurations are applied for the dev, lab, and production environments.
-- **Why it’s needed**: HashiCorp Vault will securely store secrets that are later accessed by OpenShift through External Secrets Operator. It provides a central repository for managing secrets and sensitive configurations.
-
-<br>
-
-### **Vault Unsealing**:
-- **What it is**: HashiCorp Vault requires a process known as "unsealing" to decrypt and initialize the HashiCorp Vault storage after deployment.
-- **How it works**: The `Makefile` supports unsealing HashiCorp Vault for both `lab` and `prod` environments. Depending on the specified environment, HashiCorp Vault will be unsealed automatically after deployment. This process is automated to ensure that secrets are available for use by External Secrets Operator.
-- **Why it’s needed**: HashiCorp Vault must be unsealed to allow applications to interact with it and retrieve stored secrets. This step ensures that the HashiCorp Vault instance is secure and operational.
-
-<br>
-
-### **External Secrets Operator**:
-- **What it is**: External Secrets Operator is a tool that synchronizes secrets between external secret stores (like HashiCorp Vault) and Kubernetes/OpenShift.
-- **How it works**: The `Makefile` installs External Secrets Operator via its Helm chart. Once deployed, this operator ensures that secrets from HashiCorp Vault are automatically created as Kubernetes Secrets in OpenShift. It monitors HashiCorp Vault for changes and ensures that secrets are kept up to date in the OpenShift cluster.
-- **Why it’s needed**: This operator makes it easy to use HashiCorp Vault-managed secrets in OpenShift. It abstracts the complexity of manually managing secrets and makes it easy to access and rotate secrets in a secure and automated way.
-
-<br>
-
-### **Demo secret Creation in Vault**:
-- **What it is**: The repository contains a script to populate HashiCorp Vault with demo secrets for testing purposes.
-- **How it works**: After HashiCorp Vault is deployed and unsealed, the `Makefile` runs a process to inject demo secret (such as credentials, tokens, and configuration details) into HashiCorp Vault. These secrets are then used to simulate a real-world secret management scenario.
-- **Why it’s needed**: The demo secret provides a simple example of how HashiCorp Vault can be used to manage and securely store application secrets. This makes it easier to test the entire flow from HashiCorp Vault to OpenShift using External Secrets Operator.
-
-<br>
-
-### **Syncing Vault Secrets to OpenShift**:
-- **What it is**: External Secrets Operator synchronizes the secrets stored in HashiCorp Vault to OpenShift as Kubernetes Secrets, making them accessible to applications.
-- **How it works**: Once the demo secret is created in HashiCorp Vault, External Secrets Operator listens for changes to HashiCorp Vault secrets and ensures they are mirrored in OpenShift. The operator ensures that any updates to the HashiCorp Vault secrets are automatically reflected in the OpenShift environment.
-- **Why it’s needed**: This step ensures that OpenShift can securely and seamlessly access HashiCorp Vault-managed secrets. By automating this process, developers can focus on building applications without worrying about managing secrets.
-
----
-
 ## How It All Comes Together
 
 1. **Deploy Vault**: via Helm chart, HashiCorp Vault is deployed to your OpenShift cluster.
@@ -310,6 +271,49 @@ This repository automates the deployment and configuration of **HashiCorp Vault*
 3. **Install External Secrets Operator**: External Secrets Operator is installed via Helm to manage the synchronization of secrets from HashiCorp Vault to OpenShift.
 4. **Generate Vault demo secrets**: HashiCorp Vault is populated with demo secrets that represent real-world credentials and data.
 5. **Secret synchronization to OpenShift**: External Secrets Operator automatically syncs HashiCorp Vault secrets as Kubernetes Secrets in OpenShift, making them available for use by OpenShift.
+
+---
+
+## Architecture Overview
+
+This architecture provides a **secure, automated, and scalable solution** for managing sensitive data in OpenShift using HashiCorp Vault and the External Secrets Operator. By automating deployment, unsealing, and synchronization, the system reduces manual overhead, minimizes the risk of human error, and ensures that secrets are always up-to-date and securely accessible.
+
+The following key tasks are performed:
+
+<br>
+
+### **Vault Deployment**:
+- **What it is**: HashiCorp Vault is a robust **secrets management tool** designed to securely store, access, and manage sensitive data such as credentials, tokens, and configuration details.
+- **How it works**: Vault is deployed on OpenShift using its **official Helm chart**, which simplifies the installation process. The deployment is configured to support multiple environments (e.g., development, staging, production), ensuring flexibility and scalability.
+- **Why it’s needed**: Vault acts as a **centralized and secure repository** for managing secrets. By integrating with OpenShift, it provides a reliable mechanism for applications to securely access sensitive data without exposing it in plaintext.
+
+<br>
+
+### **Vault Unsealing**:
+- **What it is**: Vault operates in a **sealed state** by default, meaning it cannot access its stored secrets until it is unsealed. Unsealing is the process of decrypting the storage backend and initializing Vault for operation.
+- **How it works**: The unsealing process is automated using a **Makefile**, which handles the unsealing for both `lab` and `prod` environments. This automation ensures that Vault is operational and ready to serve secrets to external systems like ESO.
+- **Why it’s needed**: Unsealing HashiCorp Vault is a critical step to allow applications to interact with it and retrieve stored secrets. This step ensures that the HashiCorp Vault instance is secure and operational.
+
+<br>
+
+### **External Secrets Operator**:
+- **What it is**: The **External Secrets Operator (ESO)** is a OpenShift operator that synchronizes secrets from external secret management systems (like Vault) into OpenShift secrets.
+- **How it works**: ESO continuously monitors Vault for changes to secrets. When a secret is updated in Vault, ESO automatically synchronizes it to the corresponding Kubernetes secret in OpenShift, ensuring consistency across platforms.
+- **Why it’s needed**: ESO simplifies the integration of external secret stores, like HashiCorp Vault, to manage secrets in OpenShift. It abstracts the complexity of manually managing secrets and makes it easy to access and rotate secrets in a secure and automated way.
+
+<br>
+
+### **Demo secret Creation in Vault**:
+- **What it is**: A **demo secret** is created in Vault to simulate real-world secret management scenarios. This serves as a practical example of how Vault handles sensitive data.
+- **How it works**: After HashiCorp Vault is deployed and unsealed, the `Makefile` runs a process to inject demo secret (such as credentials, tokens, and configuration details) into HashiCorp Vault. These secrets are then used to simulate a real-world secret management scenario and validate the integration between Vault, ESO, and OpenShift.
+- **Why it’s needed**: The demo secret provides a **simple test case** of how HashiCorp Vault can be used to manage and securely store application secrets. It ensures that secrets can be securely stored, retrieved, and synchronized across platforms.
+
+<br>
+
+### **Syncing Vault Secrets to OpenShift**:
+- **What it is**: This process involves synchronizing secrets stored in Vault to OpenShift as Kubernetes secrets using ESO, making them accessible to applications.
+- **How it works**: ESO actively watches for updates to secrets in Vault. When a change is detected, ESO ensures that the corresponding Kubernetes secret in OpenShift is updated in **real-time**, maintaining consistency between the two systems.
+- **Why it’s needed**: This synchronization ensures that OpenShift applications can securely access secrets managed in Vault without requiring manual updates. It enhances security and operational efficiency by automating secret management.
 
 ---
 
