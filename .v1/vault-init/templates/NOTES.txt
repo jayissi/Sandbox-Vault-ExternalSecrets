@@ -1,7 +1,0 @@
-Vault has been deployed!
-
-Once Vault server pods are "Ready", Vault will be available at: "https://{{ .Values.vault.server.route.host }}"
-
-You can monitor the pods status with:
-
-$ oc get pods -n {{ .Release.Namespace }} -w

@@ -37,7 +37,7 @@ lab:
 	  --wait-for-jobs \
 	  --timeout 60s
 	@/bin/bash -c 'sleep 15s'
-	source ./init-install.sh
+	source ./init-install-v2.sh
 
 prod:
 	helm repo add hashicorp https://helm.releases.hashicorp.com
@@ -58,7 +58,7 @@ prod:
 	  --wait-for-jobs \
 	  --timeout 60s
 	@/bin/bash -c 'sleep 15s'
-	source ./init-install.sh
+	source ./init-install-v2.sh
 
 clean:
 	-helm uninstall vault \
