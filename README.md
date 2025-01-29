@@ -137,11 +137,38 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ---
 
-### **Trust But Verify**
+## **Trust But Verify**
 
-   - Ensure that the HashiCorp Vault pods are running and unsealed.
-   - Verify External Secrets Operator pods are active.
-   - Confirm demo secrets are accessible within OpenShift.
+
+  Ensure that the HashiCorp Vault pods are running.
+
+
+<br>
+
+  Verify External Secrets Operator resources are healthy.
+
+  ```bash
+  oc get pods -n external-secrets
+  oc get secretstores.external-secrets.io vault -n demo -o jsonpath='{.status.conditions}' | jq
+  oc get externalsecrets.external-secrets.io vault -n demo -o json | jq '.status | {binding, conditions}'
+  ```
+
+<p align="center">
+    <img src="images/verify-eso-resources.png" align="center" alt="external-secrets">
+</p>
+
+
+<br>
+
+  Confirm demo secrets are accessible within OpenShift
+
+  ```bash 
+  oc get secret demo -n demo -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key): \(.value | @base64d)"'
+  ```
+
+<p align="center">
+    <img src="images/confirm-secret-synchronization.png" width="30%" align="center" alt="deployment-success">
+</p>
 
 ---
 

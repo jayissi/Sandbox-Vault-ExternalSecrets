@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 HELM_UPDATE_ESO := helm repo update external-secrets
 
+.SILENT:
 .PHONY: install clean
 
 install:

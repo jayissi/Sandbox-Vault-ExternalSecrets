@@ -2,8 +2,7 @@
 set -euo pipefail
 
 # Configuration
-DEBUG=true  # Set to true to enable debug messages
-#DEBUG=false  # Set to true to enable debug messages
+DEBUG=false  # Set to true to enable debug messages
 readonly JQ="$(command -v jq)"
 readonly VAULT_KEYS_FILE=".vault-init.txt"
 readonly VAULT_INIT_SECRET_NAME="vault-operator-init"
@@ -19,7 +18,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 ORANGE='\033[38;5;214m'
 BLUE='\033[0;34m'
-WHITE='\033[1;37m' # (default)
+WHITE='\033[1;37m'
+RESET='\033[0m'  # Reset color (default)
 
 # Functions
 function log() {
@@ -34,15 +34,16 @@ function log() {
   local color=""
 
   case "$level" in
+    INFO) color="${WHITE}" ;;
     DEBUG) color="${YELLOW}" ;;
     WARNING) color="${ORANGE}" ;;
     ERROR) color="${RED}" ;;
     SUCCESS) color="${GREEN}" ;;
-    *) color="${WHITE}" ;; # Default color for unknown levels
+    *) color="${RESET}" ;; # Default color for unknown levels
   esac
 
   printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "$BLUE" "$border" "$padding" "$message" "$padding" "$border" "$WHITE"
-  printf "%b[%s] [%s]\n" "$color" "$timestamp" "$level"
+  printf "%b[%s] [%s]%b\n" "$color" "$timestamp" "$level" "$RESET"
 }
 
 function debug() {
@@ -73,7 +74,7 @@ function check_command_status() {
     log "ERROR" "Command failed: ${command}"
     exit 1
   else
-    log "DEBUG" "Command succeed: ${command}"
+    debug "Command succeed: ${command}"
   fi
 }
 
@@ -85,7 +86,7 @@ function validate_dependencies() {
       log "ERROR" "Command '$cmd' not found. Please install it and try again."
       exit 1
     else
-      log "DEBUG" "Command '$cmd' found."
+      debug "Command '$cmd' found."
     fi
   done
   log "INFO" "Dependencies Validated"
@@ -132,7 +133,7 @@ function first_vault_login_with_root_token() {
   local attempt=1
   local delay=5
 
-  log "DEBUG" "First login via Root Token on 'vault-${pod_index}'"
+  debug "First login via Root Token on 'vault-${pod_index}'"
 
   while [ $attempt -le $max_attempts ]; do
     log "INFO" "Attempt $attempt of $max_attempts to login via Root Token on 'vault-${pod_index}'"
@@ -140,7 +141,7 @@ function first_vault_login_with_root_token() {
     # Check if Vault pod is ready
     if ! exec_in_vault_pod "${pod_index}" vault status > /dev/null 2>&1; then
       log "WARNING" "Vault pod 'vault-${pod_index}' is not ready. Retrying in ${delay} seconds..."
-      sleep $delay
+      $(command -v sleep) $delay
       attempt=$((attempt + 1))
       continue
     fi
@@ -150,7 +151,7 @@ function first_vault_login_with_root_token() {
     
     # Check if the command was successful
     if [ $? -eq 0 ]; then
-      log "DEBUG" "Successfully logged in via Root Token on 'vault-${pod_index}'"
+      debug "Successfully logged in via Root Token on 'vault-${pod_index}'"
       return 0
     else
       log "WARNING" "Failed to login via Root Token on 'vault-${pod_index}' (Attempt $attempt of $max_attempts)"

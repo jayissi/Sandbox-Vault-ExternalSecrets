@@ -3,6 +3,7 @@ HELM_UPDATE_VAULT := helm repo update hashicorp
 VAULT_URL := $(shell echo vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath --template='{.spec.domain}'))
 DEFAULT_STORAGE_CLASS := $$(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
 
+.SILENT:
 .PHONY: dev lab prod clean
 
 dev:
