@@ -44,7 +44,7 @@ prod:
 
 # Verify the setup by running the verify-vault-openshift.sh script
 verify:
-	@echo "Execute verify script..."
+	@echo "Initiate verify script..."
 	@$(call run_make,verify,$(LAB_DIR))
 
 # Clean all environments
