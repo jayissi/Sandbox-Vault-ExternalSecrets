@@ -81,8 +81,8 @@ eval ${OC_EXEC_VAULT} vault write auth/approle/role/demo \
 
 # Create Vault RoleID and SecretID
 log "Create Vault RoleID and SecretID"
-ROLE_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault read auth/approle/role/demo/role-id -format=json | ${JQ} -r '.')
-SECRET_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault write -f auth/approle/role/demo/secret-id -format=json | ${JQ} -r '.')
+readonly ROLE_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault read auth/approle/role/demo/role-id -format=json | ${JQ} -r '.')
+readonly SECRET_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault write -f auth/approle/role/demo/secret-id -format=json | ${JQ} -r '.')
 
 echo ${ROLE_ID_PAYLOAD} ${SECRET_ID_PAYLOAD} | ${JQ} -a
 

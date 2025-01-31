@@ -1,8 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-# Configuration
-DEBUG=false  # Set to true to enable debug messages
+# Enable debug mode (true/false)
+DEBUG=false
+
+# Enable trace mode (true/false)
+TRACE=false
+
+# Enable trace mode only if both DEBUG and TRACE are true
+if ${DEBUG} && ${TRACE}; then
+    set -x
+fi
+
 readonly JQ="$(command -v jq)"
 readonly VAULT_KEYS_FILE=".vault-init.txt"
 readonly VAULT_INIT_SECRET_NAME="vault-operator-init"
@@ -13,27 +22,27 @@ readonly TEMP_DIR=$(mktemp --directory --tmpdir="${PWD}")
 readonly FULL_PATH_VAULT_KEYS_FILE="${TEMP_DIR}/${VAULT_KEYS_FILE}"
 
 # Logging colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-ORANGE='\033[38;5;214m'
-BLUE='\033[0;34m'
-WHITE='\033[1;37m'
-RESET='\033[0m'  # Reset color (default)
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly ORANGE='\033[38;5;214m'
+readonly BLUE='\033[0;34m'
+readonly WHITE='\033[1;37m'
+readonly RESET='\033[0m'  # Reset color (default)
 
 # Functions
 function log() {
   local level="${1:-INFO}" # Default to INFO if no level is provided
-  local message="$2"
+  local message="${2}"
   local message_length=${#message}
   local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
   local border="---------------------------------------------------------------------------------"
   local border_length=$(( ${#border} - 2 ))
   local padding_length=$(( (border_length - message_length - 2) / 2 )) # Subtract 2 for the "⎈" symbols
-  local padding=$(printf '%*s' "$padding_length" "") # Create padding spaces
+  local padding=$(printf '%*s' "${padding_length}" "") # Create padding spaces
   local color=""
 
-  case "$level" in
+  case "${level}" in
     INFO) color="${WHITE}" ;;
     DEBUG) color="${YELLOW}" ;;
     WARNING) color="${ORANGE}" ;;
@@ -42,14 +51,22 @@ function log() {
     *) color="${RESET}" ;; # Default color for unknown levels
   esac
 
-  printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "$BLUE" "$border" "$padding" "$message" "$padding" "$border" "$WHITE"
-  printf "%b[%s] [%s]%b\n" "$color" "$timestamp" "$level" "$RESET"
+  printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "${BLUE}" "${border}" "${padding}" "${message}" "${padding}" "${border}" "${WHITE}"
+  printf "%b[%s] [%s]%b\n" "${color}" "${timestamp}" "${level}" "${RESET}"
 }
 
 function debug() {
-  if [ "$DEBUG" = true ]; then
-    log "DEBUG" "$1"
+  if [ "${DEBUG}" = true ]; then
+    log "DEBUG" "${1}" >&2
   fi
+}
+
+# Trace logging function
+trace() {
+    local message="${1}"
+    if ${DEBUG} && ${TRACE}; then
+        log "TRACE" "${message}" >&2
+    fi
 }
 
 function cleanup() {
@@ -60,21 +77,21 @@ function cleanup() {
 
 # Reusable function to execute commands in a Vault pod
 function exec_in_vault_pod() {
-  local pod_index="$1"
+  local pod_index="${1}"
   shift
-  local command="$@"
-  oc exec -n "${VAULT_NAMESPACE}" -ti "vault-${pod_index}" -- $command
+  local command="${@}"
+  oc exec -n "${VAULT_NAMESPACE}" -ti "vault-${pod_index}" -- ${command}
 }
 
 # Reusable function to check command status
 function check_command_status() {
-  local exit_code=$?
-  local command="$1"
-  if [ $exit_code -ne 0 ]; then
+  local exit_code=${?}
+  local command="${1}"
+  if [ ${exit_code} -ne 0 ]; then
     log "ERROR" "Command failed: ${command}"
     exit 1
   else
-    debug "Command succeed: ${command}"
+    debug "Command succeeded: ${command}"
   fi
 }
 
@@ -82,11 +99,11 @@ function check_command_status() {
 function validate_dependencies() {
   local dependencies=("jq" "oc")
   for cmd in "${dependencies[@]}"; do
-    if ! command -v "$cmd" > /dev/null 2>&1; then
-      log "ERROR" "Command '$cmd' not found. Please install it and try again."
+    if ! command -v "${cmd}" > /dev/null 2>&1; then
+      log "ERROR" "Command '${cmd}' not found. Please install it and try again."
       exit 1
     else
-      debug "Command '$cmd' found."
+      debug "Command '${cmd}' found."
     fi
   done
   log "INFO" "Dependencies Validated"
@@ -110,38 +127,38 @@ function initialize_vault() {
   check_command_status "oc create secret"
 
   # Print the Vault URL and the root token from the FULL_PATH_VAULT_KEYS_FILE
-  VAULT_URL="https://$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
+  local VAULT_URL="https://$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
   echo "Vault URL: ${VAULT_URL}"
   echo "Vault initialization complete. Root token: $(${JQ} -r '.root_token' ${FULL_PATH_VAULT_KEYS_FILE})"
 }
 
 function unseal_vault() {
-  local pod_index=$1
+  local pod_index=${1}
   local unseal_keys=($(echo "${VAULT_KEYS_PAYLOAD}" | ${JQ} -r ".unseal_keys_b64[]"))
   
   debug "Unsealing Vault pod 'vault-${pod_index}'"
   for key_index in $(shuf -i 0-$((UNSEAL_SHARES - 1)) -n ${UNSEAL_THRESHOLD}); do
     log "INFO" "Unsealing pod 'vault-${pod_index}' using unseal key index: ${key_index}"
-    exec_in_vault_pod "${pod_index}" vault operator unseal "${unseal_keys[$key_index]}"
+    exec_in_vault_pod "${pod_index}" vault operator unseal "${unseal_keys[${key_index}]}"
     check_command_status "vault operator unseal"
   done
 }
 
 function first_vault_login_with_root_token() {
-  local pod_index="$1"
+  local pod_index="${1}"
   local max_attempts=5
   local attempt=1
   local delay=5
 
   debug "First login via Root Token on 'vault-${pod_index}'"
 
-  while [ $attempt -le $max_attempts ]; do
-    log "INFO" "Attempt $attempt of $max_attempts to login via Root Token on 'vault-${pod_index}'"
+  while [ ${attempt} -le ${max_attempts} ]; do
+    log "INFO" "Attempt ${attempt} of ${max_attempts} to login via Root Token on 'vault-${pod_index}'"
     
     # Check if Vault pod is ready
     if ! exec_in_vault_pod "${pod_index}" vault status > /dev/null 2>&1; then
       log "WARNING" "Vault pod 'vault-${pod_index}' is not ready. Retrying in ${delay} seconds..."
-      $(command -v sleep) $delay
+      $(command -v sleep) ${delay}
       attempt=$((attempt + 1))
       continue
     fi
@@ -150,23 +167,23 @@ function first_vault_login_with_root_token() {
     exec_in_vault_pod "${pod_index}" vault login "$(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r '.root_token')"
     
     # Check if the command was successful
-    if [ $? -eq 0 ]; then
+    if [ ${?} -eq 0 ]; then
       debug "Successfully logged in via Root Token on 'vault-${pod_index}'"
       return 0
     else
-      log "WARNING" "Failed to login via Root Token on 'vault-${pod_index}' (Attempt $attempt of $max_attempts)"
+      log "WARNING" "Failed to login via Root Token on 'vault-${pod_index}' (Attempt ${attempt} of ${max_attempts})"
       attempt=$((attempt + 1))
-      sleep $delay
+      sleep ${delay}
     fi
   done
 
   # If all attempts fail, log an error and exit
-  log "ERROR" "Failed to login via Root Token on 'vault-${pod_index}' after $max_attempts attempts"
+  log "ERROR" "Failed to login via Root Token on 'vault-${pod_index}' after ${max_attempts} attempts"
   exit 1
 }
 
 function enable_audit_logging() {
-  local pod_index=$1
+  local pod_index=${1}
   log "INFO" "Enabling Audit Logging on 'vault-${pod_index}'"
   exec_in_vault_pod "${pod_index}" vault audit enable -path="vault-${pod_index}_file_audit_" file \
     format=json \
@@ -183,7 +200,7 @@ function enable_audit_logging() {
 }
 
 function join_cluster() {
-  local pod_index=$1
+  local pod_index=${1}
   log "INFO" "Joining server 'vault-${pod_index}' to the cluster"
   exec_in_vault_pod "${pod_index}" vault operator raft join http://vault-0.vault-internal:8200
   check_command_status "vault operator raft join"

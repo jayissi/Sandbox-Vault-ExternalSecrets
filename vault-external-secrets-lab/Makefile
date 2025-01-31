@@ -1,11 +1,39 @@
+# Use Bash as the shell
 SHELL := /bin/bash
 
+# Phony targets (targets that are not files)
+.PHONY: demo clean help
 
-.SILENT:
-.PHONY: demo clean
+# Variables
+PROJECT_NAME := demo
 
+# Default target (run when no target is specified)
+.DEFAULT_GOAL := help
+
+# Run the demo setup
 demo:
-	source ./post-install-v2.sh
+	@echo "Setting up the demo..."
+	@if ! source ./post-install-v3.sh; then \
+		echo "Error: Failed to run post-install-v3.sh"; \
+		exit 1; \
+	fi
+	@echo "Demo setup completed successfully."
 
+# Clean up the demo environment
 clean:
-	-oc delete project demo
+	@echo "Cleaning up the demo environment..."
+	@if oc get project $(PROJECT_NAME) &> /dev/null; then \
+		oc delete project $(PROJECT_NAME); \
+		echo "Project '$(PROJECT_NAME)' deleted."; \
+	else \
+		echo "Project '$(PROJECT_NAME)' does not exist. Skipping deletion."; \
+	fi
+
+# Display help information
+help:
+	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Targets:"
+	@echo "  demo    Set up the demo environment by running post-install-v3.sh"
+	@echo "  clean   Clean up the demo environment by deleting the '$(PROJECT_NAME)' project"
+	@echo "  help    Display this help message"
