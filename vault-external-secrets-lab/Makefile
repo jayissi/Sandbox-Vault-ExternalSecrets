@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 # Phony targets (targets that are not files)
-.PHONY: demo clean help
+.PHONY: demo clean verify help
 
 # Variables
 PROJECT_NAME := demo
@@ -29,6 +29,15 @@ clean:
 		echo "Project '$(PROJECT_NAME)' does not exist. Skipping deletion."; \
 	fi
 
+# Verify the setup by running the verify-vault-openshift.sh script
+verify:
+	@echo "Verifying the setup..."
+	@if ! ./verify-vault-openshift.sh; then \
+		echo "Error: Failed to run verify-vault-openshift.sh"; \
+		exit 1; \
+	fi
+	@echo "Verification completed successfully."
+
 # Display help information
 help:
 	@echo "Usage: make <target>"
@@ -36,4 +45,5 @@ help:
 	@echo "Targets:"
 	@echo "  demo    Set up the demo environment by running post-install-v3.sh"
 	@echo "  clean   Clean up the demo environment by deleting the '$(PROJECT_NAME)' project"
+	@echo "  verify  Verify the setup by running verify-vault-openshift.sh"
 	@echo "  help    Display this help message"

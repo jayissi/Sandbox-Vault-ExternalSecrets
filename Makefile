@@ -5,7 +5,7 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Phony targets (targets that are not files)
-.PHONY: dev lab prod clean clean-demo clean-es clean-hv help
+.PHONY: dev lab prod verify clean clean-demo clean-es clean-hv help
 
 # Directories
 VAULT_DIR := ./hashicorp-vault-helm
@@ -21,6 +21,7 @@ dev:
 	@$(call run_make,dev,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
+	@$(call run_make,verify,$(LAB_DIR))
 	@echo "Development environment setup completed."
 
 # Run lab environment setup
@@ -29,6 +30,7 @@ lab:
 	@$(call run_make,lab,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
+	@$(call run_make,verify,$(LAB_DIR))
 	@echo "Lab environment setup completed."
 
 # Run production environment setup
@@ -37,7 +39,13 @@ prod:
 	@$(call run_make,prod,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
+	@$(call run_make,verify,$(LAB_DIR))
 	@echo "Production environment setup completed."
+
+# Verify the setup by running the verify-vault-openshift.sh script
+verify:
+	@echo "Execute verify script..."
+	@$(call run_make,verify,$(LAB_DIR))
 
 # Clean all environments
 clean: clean-demo clean-es clean-hv
