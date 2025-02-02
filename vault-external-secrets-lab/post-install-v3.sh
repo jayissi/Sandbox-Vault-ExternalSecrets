@@ -94,6 +94,8 @@ function check_command() {
         exit 1
     fi
     debug "Command '${cmd}' is available."
+    local UPPER_CMD=$(echo "${cmd}" | sed 's/.*/\U&/')
+    readonly "${UPPER_CMD}"=$(command -v "${cmd}")
 }
 
 # Function to validate environment variables
@@ -187,8 +189,6 @@ function main() {
     check_command "oc"
 
     # Define variables
-    readonly JQ=$(command -v jq)
-    readonly OC=$(command -v oc)
     readonly APPROLE_SECRET="approle-vault"
     readonly VAULT_URL=$("${OC}" get routes.route.openshift.io vault -n vault -o jsonpath='{.spec.host}')
 
