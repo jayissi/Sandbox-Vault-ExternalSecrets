@@ -51,8 +51,8 @@ function log() {
     *) color="${RESET}" ;; # Default color for unknown levels
   esac
 
-  printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "${BLUE}" "${border}" "${padding}" "${message}" "${padding}" "${border}" "${WHITE}"
-  printf "%b[%s] [%s]%b\n" "${color}" "${timestamp}" "${level}" "${RESET}"
+  printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "${BLUE}" "${border}" "${padding}" "${message}" "${padding}" "${border}" "${WHITE}" >&2
+  printf "%b[%s] [%s]%b\n" "${color}" "${timestamp}" "${level}" "${RESET}" >&2
 }
 
 function debug() {
