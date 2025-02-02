@@ -208,7 +208,7 @@ function join_cluster() {
 
 # Main function
 function main() {
-clear
+tput clear
 trap cleanup EXIT
 validate_dependencies
 
