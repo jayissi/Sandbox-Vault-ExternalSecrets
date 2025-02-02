@@ -48,7 +48,7 @@ function log() {
 }
 
 # Debug logging function
-debug() {
+function debug() {
     local message="${1}"
     if ${DEBUG}; then
         log "DEBUG" "${message}" >&2
@@ -56,7 +56,7 @@ debug() {
 }
 
 # Trace logging function
-trace() {
+function trace() {
     local message="${1}"
     if ${DEBUG} && ${TRACE}; then
         log "TRACE" "${message}" >&2
@@ -64,7 +64,7 @@ trace() {
 }
 
 # Function to handle errors and exit gracefully
-trap_handler() {
+function trap_handler() {
     local exit_code=${?}
     local line_number="${1}"
     local command="${2}"
@@ -78,7 +78,7 @@ trap_handler() {
 trap 'trap_handler ${LINENO} "$BASH_COMMAND"' ERR
 
 # Function to execute Vault commands
-vault_exec() {
+function vault_exec() {
     local cmd="${1}"
     debug "Executing Vault command: ${cmd}"
 
@@ -87,7 +87,7 @@ vault_exec() {
 }
 
 # Function to check if a command exists
-check_command() {
+function check_command() {
     local cmd="${1}"
     if ! command -v "${cmd}" &> /dev/null; then
         log "ERROR" "Command '${cmd}' not found. Please install it."
@@ -99,7 +99,7 @@ check_command() {
 }
 
 # Function to validate environment variables
-validate_env() {
+function validate_env() {
     local required_vars=("VAULT_URL" "APPROLE_SECRET")
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
@@ -112,7 +112,7 @@ validate_env() {
 }
 
 # Function to verify Vault is running and its URL is responding
-verify_vault() {
+function verify_vault() {
     debug "Verifying Vault is running and its URL is responding..."
     if ! curl -k -s --head --fail "${VAULT_URL}" &> /dev/null; then
         log "ERROR" "Vault URL '${VAULT_URL}' is not responding."
@@ -125,7 +125,7 @@ verify_vault() {
 }
 
 # Function to verify External Secrets Operator is installed and pods are running
-verify_external_secrets_operator() {
+function verify_external_secrets_operator() {
     debug "Verifying External Secrets Operator is installed and pods are running..."
     if ! "${OC}" get pods -n external-secrets -l app.kubernetes.io/name=external-secrets &> /dev/null; then
         log "ERROR" "External Secrets Operator is not installed or pods are not running."
@@ -137,7 +137,7 @@ verify_external_secrets_operator() {
 }
 
 # Function to verify External Secrets
-verify_external_secrets() {
+function verify_external_secrets() {
     debug "Verifying External Secrets and Secret Store are working..."
     if ! "${OC}" get externalsecret -n demo &> /dev/null; then
         log "ERROR" "External Secrets is not ready."
@@ -149,7 +149,7 @@ verify_external_secrets() {
 }
 
 # Function to verify Secret Stores
-verify_secret_stores() {
+function verify_secret_stores() {
     debug "Verifying Secret Stores..."
     if ! "${OC}" get secretstore -n demo &> /dev/null; then
         log "ERROR" "Secret Stores is not ready."
@@ -161,7 +161,7 @@ verify_secret_stores() {
 }
 
 # Function to verify the created secret is available
-verify_approle_secret() {
+function verify_approle_secret() {
     debug "Verifying the created secret is available..."
     local approle_vault_secret="${APPROLE_SECRET}"
     if ! "${OC}" get secret "${approle_vault_secret}" -n demo &> /dev/null; then
@@ -182,7 +182,7 @@ verify_approle_secret() {
 }
 
 # Function to verify the created secret is available
-verify_demo_secret() {
+function verify_demo_secret() {
     debug "Verifying the created secret is available..."
     local demo_vault_secret="${DEMO_SECRET}"
     if ! "${OC}" get secret "${demo_vault_secret}" -n demo &> /dev/null; then
@@ -203,7 +203,7 @@ verify_demo_secret() {
 }
 
 # Function to verify Vault objects (policy, secret, and auth method)
-verify_vault_objects() {
+function verify_vault_objects() {
     debug "Verifying Vault objects (policy, secret, and auth method)..."
 
     # Verify policy
@@ -235,7 +235,7 @@ verify_vault_objects() {
 }
 
 # Main function
-main() {
+function main() {
     # Ensure required commands are installed
     check_command "jq"
     check_command "oc"

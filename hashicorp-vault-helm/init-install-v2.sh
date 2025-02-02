@@ -62,7 +62,7 @@ function debug() {
 }
 
 # Trace logging function
-trace() {
+function trace() {
     local message="${1}"
     if ${DEBUG} && ${TRACE}; then
         log "TRACE" "${message}" >&2
@@ -206,7 +206,8 @@ function join_cluster() {
   check_command_status "vault operator raft join"
 }
 
-# Main Script
+# Main function
+function main() {
 clear
 trap cleanup EXIT
 validate_dependencies
@@ -225,3 +226,7 @@ done
 log "INFO" "Enabling 'secret/' KV-V2 Secret Engine"
 exec_in_vault_pod 0 vault secrets enable --version=2 --path=secret kv
 check_command_status "vault secrets enable"
+}
+
+# Execute main function
+main

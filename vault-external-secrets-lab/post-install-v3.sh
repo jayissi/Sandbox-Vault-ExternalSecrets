@@ -48,7 +48,7 @@ function log() {
 }
 
 # Debug logging function
-debug() {
+function debug() {
     local message="${1}"
     if ${DEBUG}; then
         log "DEBUG" "${message}" >&2
@@ -56,7 +56,7 @@ debug() {
 }
 
 # Trace logging function
-trace() {
+function trace() {
     local message="${1}"
     if ${DEBUG} && ${TRACE}; then
         log "TRACE" "${message}" >&2
@@ -64,7 +64,7 @@ trace() {
 }
 
 # Function to handle errors and exit gracefully
-trap_handler() {
+function trap_handler() {
     local exit_code=${?}
     local line_number="${1}"
     local command="${2}"
@@ -78,7 +78,7 @@ trap_handler() {
 trap 'trap_handler ${LINENO} "$BASH_COMMAND"' ERR
 
 # Function to execute Vault commands
-vault_exec() {
+function vault_exec() {
     local cmd="${1}"
     debug "Executing Vault command: ${cmd}"
 
@@ -87,7 +87,7 @@ vault_exec() {
 }
 
 # Function to check if a command exists
-check_command() {
+function check_command() {
     local cmd="${1}"
     if ! command -v "${cmd}" &> /dev/null; then
         log "ERROR" "Command '${cmd}' not found. Please install it."
@@ -97,7 +97,7 @@ check_command() {
 }
 
 # Function to validate environment variables
-validate_env() {
+function validate_env() {
     local required_vars=("VAULT_URL" "APPROLE_SECRET")
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
@@ -108,7 +108,7 @@ validate_env() {
 }
 
 # Function to create a namespace
-create_namespace() {
+function create_namespace() {
     local namespace="${1}"
     if ! "${OC}" get project "${namespace}" -o jsonpath='{.metadata.name}' &> /dev/null; then
         log "INFO" "Creating namespace: ${namespace}"
@@ -119,7 +119,7 @@ create_namespace() {
 }
 
 # Function to create a secret
-create_secret() {
+function create_secret() {
     local secret_name="${1}"
     local namespace="${2}"
     local role_id_payload="${3}"
@@ -165,7 +165,7 @@ create_secret() {
 }
 
 # Function to apply manifests
-apply_manifests() {
+function apply_manifests() {
     local approle_secret="${1}"
     local vault_url="${2}"
 
@@ -181,7 +181,7 @@ apply_manifests() {
 }
 
 # Main function
-main() {
+function main() {
     # Ensure required commands are installed
     check_command "jq"
     check_command "oc"
