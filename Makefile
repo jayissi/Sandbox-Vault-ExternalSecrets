@@ -46,6 +46,7 @@ prod:
 verify:
 	@echo "Initiate verify script..."
 	@$(call run_make,verify,$(LAB_DIR))
+	@echo "Verification script completed."
 
 # Clean all environments
 clean: clean-demo clean-es clean-hv

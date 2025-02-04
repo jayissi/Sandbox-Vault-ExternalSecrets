@@ -1,6 +1,9 @@
 # Use Bash as the shell
 SHELL := /bin/bash
 
+# Suppress directory change messages
+MAKEFLAGS += --no-print-directory
+
 # Phony targets (targets that are not files)
 .PHONY: demo clean verify help
 
