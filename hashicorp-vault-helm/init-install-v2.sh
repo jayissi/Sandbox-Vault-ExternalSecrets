@@ -208,7 +208,7 @@ function join_cluster() {
 
 # Main function
 function main() {
-tput clear
+echo -e "\033c" # clear screen
 trap cleanup EXIT
 validate_dependencies
 
