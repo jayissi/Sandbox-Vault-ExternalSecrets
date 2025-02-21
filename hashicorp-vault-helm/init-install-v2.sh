@@ -106,7 +106,7 @@ function validate_dependencies() {
       debug "Command '${cmd}' found."
     fi
   done
-  log "INFO" "Dependencies Validated"
+  log "SUCCESS" "Dependencies Validated"
 }
 
 function initialize_vault() {
