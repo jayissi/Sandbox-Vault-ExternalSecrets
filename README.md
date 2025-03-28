@@ -144,6 +144,11 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ## Trust But Verify
 
+Execute the `Makefile` verify scripts to validate the configuration is successful.
+
+```bash
+make verify
+```
 
 ### Verify HashiCorp Vault
 
