@@ -112,8 +112,8 @@ For advanced configurations, refer to:
 
 Set the `VAULT_ENV` variable based on your target environment:
 
-|  `VAULT_ENV`  | Description |
-|-------------|-------------|
+| `VAULT_ENV` | Description |
+|:-----------:|-------------|
 |  `dev`  | Deploy a single Vault instance in "Dev" server mode. |
 |  `lab`  | Deploy a single instance with auto initialization, unsealing, and auditing. |
 |  `prod` | Deploy 3 High Availability (HA) instances with auto initialization, unsealing, and auditing. |
@@ -171,7 +171,8 @@ make verify
   2. Verify vault status
 
   ```bash
-  for pod in $(oc get pods -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}'); do
+  for pod in $(oc get pods -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}')
+  do
     echo "Status for $pod:"
     oc exec -n vault $pod -- vault status
     echo "---------------------------"
