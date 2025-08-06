@@ -187,7 +187,6 @@ function enable_audit_logging() {
   log "INFO" "Enabling Audit Logging on 'vault-${pod_index}'"
   exec_in_vault_pod "${pod_index}" vault audit enable -path="vault-${pod_index}_file_audit_" file \
     format=json \
-    prefix="ocp_vault-${pod_index}_" \
     file_path="/vault/audit/vault-${pod_index}_audit.log"
   
   check_command_status "vault audit enable file"
