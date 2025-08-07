@@ -14,7 +14,7 @@ VAULT_CHART := hashicorp/vault
 VAULT_NAMESPACE := vault
 VAULT_URL := $(shell echo vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath --template='{.spec.domain}'))
 DEFAULT_STORAGE_CLASS := $(shell oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
-VERSION := 0.29.1
+VERSION := 0.30.1
 
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
@@ -87,6 +87,7 @@ define install_vault
 		--set server.route.host=$(3) \
 		--set server.dataStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 		--set server.auditStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
+		-f https://raw.githubusercontent.com/hashicorp/vault-helm/refs/heads/main/values.yaml \
 		-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 		$(foreach file,$(4),-f $(file)) \
 		-n $(2) \
