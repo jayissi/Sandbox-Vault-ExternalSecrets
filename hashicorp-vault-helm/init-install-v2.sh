@@ -120,16 +120,35 @@ function initialize_vault() {
   check_command_status "vault operator init"
 
   readonly VAULT_KEYS_PAYLOAD=$(cat "${FULL_PATH_VAULT_KEYS_FILE}")
+  rm -rf "${FULL_PATH_VAULT_KEYS_FILE}"
   debug "Creating Kubernetes secret ${VAULT_INIT_SECRET_NAME} in namespace ${VAULT_NAMESPACE}"
-  oc create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" \
-    --from-env-file <(${JQ} -r "to_entries|map(\"\(.key)=\(.value|tostring)\")|.[]" "${FULL_PATH_VAULT_KEYS_FILE}")
+  
+  # Create individual JSON files for each key in the temp directory
+  for k in $(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r 'keys[]'); do
+    echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" --arg k "$k" '.[$k]' > "${TEMP_DIR}/$k.json"
+  done
+  
+  # Create the secret using a preferred method
+  local SECRET_ARGS=()
+  debug "Building secret arguments"
+  for f in "${TEMP_DIR}"/*.json; do
+      [[ -e "$f" ]] || continue
+      local key=$(basename "$f" .json)
+      debug "Adding secret argument: --from-file=${key}=${f}"
+      SECRET_ARGS+=( "--from-file=${key}=${f}" )
+  done
+
+  # Debug: Show final arguments
+  debug "Final SECRET_ARGS: ${SECRET_ARGS[@]}"
+
+  oc create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}"
 
   check_command_status "oc create secret"
 
   # Print the Vault URL and the root token from the FULL_PATH_VAULT_KEYS_FILE
   local VAULT_URL="https://$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
   echo "Vault URL: ${VAULT_URL}"
-  echo "Vault initialization complete. Root token: $(${JQ} -r '.root_token' ${FULL_PATH_VAULT_KEYS_FILE})"
+  echo "Vault initialization complete. Root token: $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')"
 }
 
 function unseal_vault() {
