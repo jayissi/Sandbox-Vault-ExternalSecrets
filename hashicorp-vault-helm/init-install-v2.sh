@@ -13,13 +13,12 @@ if ${DEBUG} && ${TRACE}; then
 fi
 
 readonly JQ="$(command -v jq)"
-readonly VAULT_KEYS_FILE=".vault-init.txt"
+readonly OC="$(command -v oc)"
 readonly VAULT_INIT_SECRET_NAME="vault-operator-init"
 readonly UNSEAL_SHARES=5
 readonly UNSEAL_THRESHOLD=3
 readonly VAULT_NAMESPACE="vault"
 readonly TEMP_DIR=$(mktemp --directory --tmpdir="${PWD}")
-readonly FULL_PATH_VAULT_KEYS_FILE="${TEMP_DIR}/${VAULT_KEYS_FILE}"
 
 # Logging colors
 readonly RED='\033[0;31m'
@@ -80,7 +79,7 @@ function exec_in_vault_pod() {
   local pod_index="${1}"
   shift
   local command="${@}"
-  oc exec -n "${VAULT_NAMESPACE}" -i pods/"vault-${pod_index}" -- ${command}
+  "${OC}" exec -n "${VAULT_NAMESPACE}" -i pods/"vault-${pod_index}" -- ${command}
 }
 
 # Reusable function to check command status
@@ -112,16 +111,14 @@ function validate_dependencies() {
 function initialize_vault() {
   log "INFO" "Starting Vault Initialization"
   debug "Initializing Vault with ${UNSEAL_SHARES} unseal shares and a threshold of ${UNSEAL_THRESHOLD}"
-  exec_in_vault_pod 0 vault operator init \
-    -format=json \
-    -key-shares ${UNSEAL_SHARES} \
-    -key-threshold ${UNSEAL_THRESHOLD} > "${FULL_PATH_VAULT_KEYS_FILE}"
-  
-  check_command_status "vault operator init"
 
-  readonly VAULT_KEYS_PAYLOAD=$(cat "${FULL_PATH_VAULT_KEYS_FILE}")
-  rm -rf "${FULL_PATH_VAULT_KEYS_FILE}"
-  debug "Creating Kubernetes secret ${VAULT_INIT_SECRET_NAME} in namespace ${VAULT_NAMESPACE}"
+  readonly VAULT_KEYS_PAYLOAD=$(
+    exec_in_vault_pod 0 \
+      vault operator init \
+        -format=json \
+        -key-shares "${UNSEAL_SHARES}" \
+        -key-threshold "${UNSEAL_THRESHOLD}"
+  )
   
   # Create individual JSON files for each key in the temp directory
   for k in $(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r 'keys[]'); do
@@ -140,13 +137,18 @@ function initialize_vault() {
 
   # Debug: Show final arguments
   debug "Final SECRET_ARGS: ${SECRET_ARGS[@]}"
+  debug "Creating Kubernetes secret ${VAULT_INIT_SECRET_NAME} in namespace ${VAULT_NAMESPACE}"
 
-  oc create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}"
+  "${OC}" create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}"
+
+  # Debug: Remove *.json files
+  debug "Remove temp *.json files"
+  rm -rf "${TEMP_DIR}"/*.json
 
   check_command_status "oc create secret"
 
-  # Print the Vault URL and the root token from the FULL_PATH_VAULT_KEYS_FILE
-  local VAULT_URL="https://$(oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
+  # Print the Vault URL and the root token from var ${VAULT_KEYS_PAYLOAD}
+  local VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
   echo "Vault URL: ${VAULT_URL}"
   echo "Vault initialization complete. Root token: $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')"
 }
@@ -232,7 +234,7 @@ validate_dependencies
 
 initialize_vault
 
-for pod_index in $(oc get pods -n "${VAULT_NAMESPACE}" -o=jsonpath='{.items[?(@.metadata.labels.app\.kubernetes\.io\/name=="vault")].metadata.labels.apps\.kubernetes\.io\/pod-index}'); do
+for pod_index in $("${OC}" get pods -n "${VAULT_NAMESPACE}" -o=jsonpath='{.items[?(@.metadata.labels.app\.kubernetes\.io\/name=="vault")].metadata.labels.apps\.kubernetes\.io\/pod-index}'); do
   if [[ "${pod_index}" -gt 0 ]]; then
     join_cluster "${pod_index}"
   fi
