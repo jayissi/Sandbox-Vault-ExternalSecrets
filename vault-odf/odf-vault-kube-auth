@@ -1,0 +1,129 @@
+RH Docs -> https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/4.18/html/deploying_openshift_data_foundation_using_amazon_web_services/deploy-using-dynamic-storage-devices-aws#enabling-cluster-wide-encryprtion-with-the-kubernetes-authentication-using-kms_cloud-storage
+Pt.1 -> https://developers.redhat.com/articles/2025/06/18/openshift-data-foundation-and-hashicorp-vault-securing-data#deploy_openshift_data_foundation_cluster
+Pt.2 -> https://developers.redhat.com/articles/2025/07/15/enhance-data-security-openshift-data-foundation#steps_to_enable_storageclass_encryption
+
+
+oc -n openshift-storage create serviceaccount odf-vault-auth
+
+oc -n openshift-storage create clusterrolebinding vault-tokenreview-binding --clusterrole=system:auth-delegator --serviceaccount=openshift-storage:odf-vault-auth
+
+
+cat <<EOF | oc create -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: odf-vault-auth-token
+  namespace: openshift-storage
+  annotations:
+    kubernetes.io/service-account.name: odf-vault-auth
+type: kubernetes.io/service-account-token
+data: {}
+EOF
+
+
+
+SA_JWT_TOKEN=$(oc -n openshift-storage get secret odf-vault-auth-token -o jsonpath="{.data['token']}" | base64 --decode; echo)
+SA_CA_CRT=$(oc -n openshift-storage get secret odf-vault-auth-token -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
+
+OCP_HOST=$(oc config view --minify --flatten -o jsonpath="{.clusters[0].cluster.server}")
+
+
+ISSUER=$(oc get --raw /.well-known/openid-configuration | jq -r .issuer)
+AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token | jq -r '.spec.audiences' | jq -r .[0])
+
+
+echo -e "OCP_HOST: ${OCP_HOST}\n\nISSUER: ${ISSUER}\n\nAUDIENCE: ${AUDIENCE}\n\nSA_JWT_TOKEN: ${SA_JWT_TOKEN}\n\nSA_CA_CRT: |\n${SA_CA_CRT}"
+
+
+#
+# https://developer.hashicorp.com/vault/docs/auth/kubernetes#discovering-the-service-account-issuer
+#
+
+#ISSUER=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token  | jq -r '.status.token'  | cut -d . -f2 | base64 -d | jq '.iss')
+
+#AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
+#  | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token \
+#  | jq -r '.status.token' \
+#  | cut -d . -f2 \
+#  | base64 -d \
+#  | jq '.aud')
+
+
+
+oc exec -n vault -ti vault-0 -- vault auth enable kubernetes
+
+
+oc exec -n vault -ti vault-0 -- \
+  vault write auth/kubernetes/config \
+  token_reviewer_jwt="$SA_JWT_TOKEN" \
+  kubernetes_host="$OCP_HOST" \
+  kubernetes_ca_cert="$SA_CA_CRT" \
+  issuer="$ISSUER" \
+  token_audience="$AUDIENCE"
+
+
+oc exec -n vault -ti vault-0 -- vault secrets enable -path=odf kv-v2
+
+
+oc -n vault exec -i pods/vault-0 -- vault policy write odf - <<EOF
+path "odf/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+EOF
+
+
+oc exec -n vault -ti vault-0 -- \
+    vault write auth/kubernetes/role/odf-rook-ceph-op \
+    bound_service_account_names=rook-ceph-system,rook-ceph-osd,noobaa \
+    bound_service_account_namespaces=openshift-storage \
+    policies=odf \
+    ttl=1440h \
+    audience="$AUDIENCE"
+
+oc exec -n vault -ti vault-0 -- \
+    vault write auth/kubernetes/role/odf-rook-ceph-osd \
+    bound_service_account_names=rook-ceph-osd \
+    bound_service_account_namespaces=openshift-storage \
+    policies=odf \
+    ttl=1440h \
+    audience="$AUDIENCE"
+
+oc exec -n vault -ti vault-0 -- \
+    vault write auth/kubernetes/role/csi-kubernetes \
+    bound_service_account_names=ceph-csi-vault-sa \
+    bound_service_account_namespaces='*' \
+    policies=odf \
+    ttl=1440h \
+    audience="$AUDIENCE"
+
+
+<Deploy ODF>
+
+
+
+<PER NameSpace>
+
+cat <<EOF | oc apply -f -
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: csi-kms-connection-details
+  namespace: default
+data:
+  vault-tenant-sa: |-
+    {
+      "encryptionKMSType": "vaulttenantsa",
+      "vaultAddress": "http://vault.vault.svc.cluster.local:8200",
+      "vaultTLSServerName": "",
+      "vaultAuthPath": "kubernetes",
+      "vaultBackendPath": "odf",
+      "tenantSAName": "ceph-csi-vault-sa"
+    }
+EOF
+
+oc create sa ceph-csi-vault-sa -n default
+
+oc adm policy add-role-to-user system:auth-delegator system:serviceaccount:*:ceph-csi-vault-sa

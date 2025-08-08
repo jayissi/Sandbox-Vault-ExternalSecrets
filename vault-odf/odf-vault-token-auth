@@ -1,0 +1,13 @@
+oc exec -n vault -ti vault-0 -- vault secrets enable -path=odf kv-v2
+
+oc -n vault exec -i pods/vault-0 -- vault policy write odf - <<EOF
+path "odf/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+EOF
+
+
+oc exec -n vault -ti vault-0 -- vault token create -policy=odf -format json

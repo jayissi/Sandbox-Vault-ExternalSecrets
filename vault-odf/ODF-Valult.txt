@@ -1,0 +1,181 @@
+---
+# Source: operators/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    app.kubernetes.io/helm-template: operators/templates/namespace.yaml
+    argocd.argoproj.io/sync-wave: "-3"
+  labels:
+    kubernetes.io/metadata.namespace: openshift-storage
+    app.kubernetes.io/gitops-applicaton: operators
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 1.16.0
+    argocd.argoproj.io/managed-by: openshift-gitops
+    helm.sh/chart: operators-0.1.0
+  name: openshift-storage
+---
+# Source: operators/templates/operator-group.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    app.kubernetes.io/helm-template: operators/templates/operator-group.yaml
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    kubernetes.io/metadata.namespace: openshift-storage
+    app.kubernetes.io/gitops-applicaton: operators
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 1.16.0
+    argocd.argoproj.io/managed-by: openshift-gitops
+    helm.sh/chart: operators-0.1.0
+  name: openshift-storage
+  namespace: openshift-storage
+spec:
+  targetNamespaces:
+  - openshift-storage
+  upgradeStrategy: Default
+---
+# Source: operators/templates/subscription.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  annotations:
+    app.kubernetes.io/helm-template: operators/templates/subscription.yaml
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    kubernetes.io/metadata.namespace: openshift-storage
+    app.kubernetes.io/gitops-applicaton: operators
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 1.16.0
+    argocd.argoproj.io/managed-by: openshift-gitops
+    helm.sh/chart: operators-0.1.0
+    operators.coreos.com/odf-operator.openshift-storage: ""
+  name: odf-operator
+  namespace: openshift-storage
+spec:
+  channel: stable-4.18
+  name: odf-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+
+
+# oc patch console.operator cluster -n openshift-storage --type json -p '[{"op": "add", "path": "/spec/plugins", "value": ["odf-console"]}]'
+
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: csi-kms-connection-details
+  namespace: openshift-storage
+data:
+  odf: |-
+    {
+      "encryptionKMSType": "vaulttenantsa",
+      "kmsServiceName": "odf",
+      "vaultAddress": "http://vault.vault.svc.cluster.local:8200",
+      "vaultBackendPath": "odf",
+      "vaultTLSServerName": "",
+      "vaultCAFileName": "",
+      "vaultClientCertFileName": "",
+      "vaultClientCertKeyFileName": "",
+      "vaultAuthMethod": "kubernetes",
+      "vaultAuthPath": "kubernetes",
+      "vaultAuthNamespace":"",
+      "vaultNamespace": ""
+    }
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: ocs-kms-connection-details
+  namespace: openshift-storage
+data:
+  KMS_SERVICE_NAME: odf
+  VAULT_AUTH_KUBERNETES_ROLE: odf-rook-ceph-op
+  VAULT_AUTH_METHOD: kubernetes
+  VAULT_NAMESPACE: ''
+  VAULT_AUTH_MOUNT_PATH: kubernetes
+  VAULT_TLS_SERVER_NAME: ''
+  VAULT_BACKEND_PATH: odf
+  VAULT_ADDR: 'http://vault.vault.svc.cluster.local:8200'
+  KMS_PROVIDER: vault
+
+---
+apiVersion: ocs.openshift.io/v1
+kind: StorageCluster
+metadata:
+  name: ocs-storagecluster
+  namespace: openshift-storage
+spec:
+  arbiter: {}
+  encryption:
+    clusterWide: true
+    enable: true
+    keyRotation:
+      schedule: '@weekly'
+    kms:
+      enable: true
+    storageClass: true
+  externalStorage: {}
+  managedResources:
+    cephObjectStoreUsers: {}
+    cephCluster: {}
+    cephBlockPools: {}
+    cephNonResilientPools:
+      count: 1
+      resources: {}
+      volumeClaimTemplate:
+        metadata: {}
+        spec:
+          resources: {}
+        status: {}
+    cephObjectStores: {}
+    cephFilesystems:
+      dataPoolSpec:
+        application: ''
+        erasureCoded:
+          codingChunks: 0
+          dataChunks: 0
+        mirroring: {}
+        quotas: {}
+        replicated:
+          size: 0
+        statusCheck:
+          mirror: {}
+    cephRBDMirror:
+      daemonCount: 1
+    cephToolbox: {}
+    cephDashboard: {}
+    cephConfig: {}
+  network:
+    connections:
+      encryption:
+        enabled: true
+    multiClusterService: {}
+  nodeTopologies: {}
+  resourceProfile: balanced
+  storageDeviceSets:
+    - config: {}
+      resources: {}
+      placement: {}
+      name: ocs-deviceset-gp3-csi
+      dataPVCTemplate:
+        metadata: {}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Ti
+          storageClassName: gp3-csi
+          volumeMode: Block
+        status: {}
+      count: 1
+      replica: 3
+      portable: true
+      preparePlacement: {}
+
+
