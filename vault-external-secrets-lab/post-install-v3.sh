@@ -83,7 +83,7 @@ function vault_exec() {
     debug "Executing Vault command: ${cmd}"
 
     # Execute the command inside the Vault container and capture output
-    "${OC}" exec -n vault -ti vault-0 -- sh -c "${cmd}"
+    "${OC}" exec -n vault -i pods/vault-0 -- sh -c "${cmd}"
 }
 
 # Function to check if a command exists

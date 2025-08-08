@@ -83,7 +83,7 @@ function vault_exec() {
     debug "Executing Vault command: ${cmd}"
 
     # Execute the command inside the Vault container and capture output
-    "${OC}" exec -n vault -ti vault-0 -- sh -c "${cmd}"
+    "${OC}" exec -n vault -i pods/vault-0 -- sh -c "${cmd}"
 }
 
 # Function to check if a command exists
@@ -212,7 +212,7 @@ function verify_vault_objects() {
         exit 1
     fi
     log "SUCCESS" "Vault policy 'demo' exists."
-    echo "$ ${OC} exec -n vault -ti vault-0 -- sh -c 'vault policy read demo'"
+    echo "$ ${OC} exec -n vault -i pods/vault-0 -- sh -c 'vault policy read demo'"
     vault_exec "vault policy read demo"
 
     # Verify secret
@@ -221,7 +221,7 @@ function verify_vault_objects() {
         exit 1
     fi
     log "SUCCESS" "Vault secret 'secret/demo' exists."
-    echo "$ ${OC} exec -n vault -ti vault-0 -- sh -c 'vault kv get secret/demo'"
+    echo "$ ${OC} exec -n vault -i pods/vault-0 -- sh -c 'vault kv get secret/demo'"
     vault_exec "vault kv get secret/demo"
 
     # Verify auth method
@@ -230,7 +230,7 @@ function verify_vault_objects() {
         exit 1
     fi
     log "SUCCESS" "Vault auth method 'approle' is enabled."
-    echo "$ ${OC} exec -n vault -ti vault-0 -- sh -c 'vault auth list | grep -q approle'"
+    echo "$ ${OC} exec -n vault -i pods/vault-0 -- sh -c 'vault auth list | grep -q approle'"
     vault_exec "vault auth list | grep -q approle"
 }
 

@@ -80,7 +80,7 @@ function exec_in_vault_pod() {
   local pod_index="${1}"
   shift
   local command="${@}"
-  oc exec -n "${VAULT_NAMESPACE}" -ti "vault-${pod_index}" -- ${command}
+  oc exec -n "${VAULT_NAMESPACE}" -i pods/"vault-${pod_index}" -- ${command}
 }
 
 # Reusable function to check command status

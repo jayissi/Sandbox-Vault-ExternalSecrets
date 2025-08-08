@@ -34,7 +34,7 @@ check_command "oc"
 
 # Define paths and variables
 JQ=$(command -v jq)
-OC_EXEC_VAULT="oc exec -n vault -ti vault-0 --"
+OC_EXEC_VAULT="oc exec -n vault -i pods/vault-0 --"
 APPROLE_SECRET="approle-vault"
 VAULT_URL="oc get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{\"\n\"}'"
 
