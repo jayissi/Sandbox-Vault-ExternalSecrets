@@ -122,7 +122,7 @@ function initialize_vault() {
   
   # Create individual JSON files for each key in the temp directory
   for k in $(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r 'keys[]'); do
-    echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" --arg k "$k" '.[$k]' > "${TEMP_DIR}/$k.json"
+    echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r --arg k "$k" '.[$k]' > "${TEMP_DIR}/$k.json"
   done
   
   # Create the secret using a preferred method

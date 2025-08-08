@@ -11,26 +11,29 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
 ---
 
 ## Table of Contents
-1. [Summary](#summary)
-2. [Requirements](#requirements)
-3. [Installation and Configuration](#installation-and-configuration)
-   - [Prerequisites](#prerequisites)
-   - [Clone the Repository](#clone-the-repository)
-   - [Define the environment](#define-the-environment)
-   - [Execute Makefile](#execute-makefile)
-4. [Trust But Verify](#trust-but-verify)
-   - [Verify HashiCorp Vault](#verify-hashicorp-vault)
-   - [Verify External Secrets Operator](#verify-external-secrets-operator)
-   - [Validate demo secret content in OpenShift](#validate-demo-secret-content-in-openshift)
-5. [How It All Comes Together](#how-it-all-comes-together)
-6. [Architecture Overview](#architecture-overview)
-   - [Vault Deployment](#vault-deployment)
-   - [Vault Unsealing](#vault-unsealing)
-   - [External Secrets Operator](#external-secrets-operator)
-   - [Demo secret Creation in Vault](#demo-secret-creation-in-vault)
-   - [Syncing Vault Secrets to OpenShift](#syncing-vault-secrets-to-openshift)
-7. [Uninstall](#uninstall)
-8. [License](#license)
+- [Sandbox Vault ExternalSecrets](#sandbox-vault-externalsecrets)
+  - [Table of Contents](#table-of-contents)
+  - [Summary](#summary)
+  - [Requirements](#requirements)
+  - [Recently Tested](#recently-tested)
+  - [Installation and Configuration](#installation-and-configuration)
+    - [Prerequisites](#prerequisites)
+    - [Clone the Repository](#clone-the-repository)
+    - [Define the environment](#define-the-environment)
+    - [Execute Makefile](#execute-makefile)
+  - [Trust But Verify](#trust-but-verify)
+    - [Verify HashiCorp Vault](#verify-hashicorp-vault)
+    - [Verify External Secrets Operator](#verify-external-secrets-operator)
+    - [Validate demo secret content in OpenShift](#validate-demo-secret-content-in-openshift)
+  - [How It All Comes Together](#how-it-all-comes-together)
+  - [Architecture Overview](#architecture-overview)
+    - [**Vault Deployment**:](#vault-deployment)
+    - [**Vault Unsealing**:](#vault-unsealing)
+    - [**External Secrets Operator**:](#external-secrets-operator)
+    - [**Demo secret Creation in Vault**:](#demo-secret-creation-in-vault)
+    - [**Syncing Vault Secrets to OpenShift**:](#syncing-vault-secrets-to-openshift)
+  - [Uninstall](#uninstall)
+  - [License](#license)
 
 ---
 
@@ -58,6 +61,22 @@ Before proceeding, ensure the following prerequisites are met:
 - **jq**: A command-line JSON processor. [Install jq](https://stedolan.github.io/jq/download/).  
 - **Git**: Required for repository cloning. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git).  
 - **Access to Helm Repositories**: Ensure network access to [HashiCorp](https://helm.releases.hashicorp.com) and [External-Secrets](https://charts.external-secrets.io) repositories.  
+
+---
+
+## Recently Tested
+
+Date: Friday 2025-08-08 19:31:00
+
+- Openshift: v4.18.21
+- Kubernetes: v1.31.10
+- Git: 2.50.1
+- Helm: v3.18.4
+- JQ: v1.7.1
+- GNU Make: v4.4.1
+- Vault App: v1.20.1
+- Vault Helm: v0.30.1
+- External Secrets: v0.19.1
 
 ---
 
