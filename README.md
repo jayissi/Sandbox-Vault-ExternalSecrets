@@ -70,7 +70,7 @@ Date: Friday 2025-08-08 19:31:00
 
 - Openshift: v4.18.21
 - Kubernetes: v1.31.10
-- Git: 2.50.1
+- Git: v2.50.1
 - Helm: v3.18.4
 - JQ: v1.7.1
 - GNU Make: v4.4.1
