@@ -2,11 +2,12 @@ RH Docs -> https://docs.redhat.com/en/documentation/red_hat_openshift_data_found
 Pt.1 -> https://developers.redhat.com/articles/2025/06/18/openshift-data-foundation-and-hashicorp-vault-securing-data#deploy_openshift_data_foundation_cluster
 Pt.2 -> https://developers.redhat.com/articles/2025/07/15/enhance-data-security-openshift-data-foundation#steps_to_enable_storageclass_encryption
 
+#
+# if vault NOT running on OpenShift/Kubernetes - long-lived Token
+# ---
 
 oc -n openshift-storage create serviceaccount odf-vault-auth
-
 oc -n openshift-storage create clusterrolebinding vault-tokenreview-binding --clusterrole=system:auth-delegator --serviceaccount=openshift-storage:odf-vault-auth
-
 
 cat <<EOF | oc create -f -
 apiVersion: v1
@@ -20,19 +21,17 @@ type: kubernetes.io/service-account-token
 data: {}
 EOF
 
-
-
 SA_JWT_TOKEN=$(oc -n openshift-storage get secret odf-vault-auth-token -o jsonpath="{.data['token']}" | base64 --decode; echo)
 SA_CA_CRT=$(oc -n openshift-storage get secret odf-vault-auth-token -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
 
+# ---
+# if vault NOT running on OpenShift/Kubernetes - long-lived Token
+#
+
+
 OCP_HOST=$(oc config view --minify --flatten -o jsonpath="{.clusters[0].cluster.server}")
-
-
 ISSUER=$(oc get --raw /.well-known/openid-configuration | jq -r .issuer)
 AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token | jq -r '.spec.audiences' | jq -r .[0])
-
-
-echo -e "OCP_HOST: ${OCP_HOST}\n\nISSUER: ${ISSUER}\n\nAUDIENCE: ${AUDIENCE}\n\nSA_JWT_TOKEN: ${SA_JWT_TOKEN}\n\nSA_CA_CRT: |\n${SA_CA_CRT}"
 
 
 #
@@ -53,11 +52,28 @@ echo -e "OCP_HOST: ${OCP_HOST}\n\nISSUER: ${ISSUER}\n\nAUDIENCE: ${AUDIENCE}\n\n
 oc exec -n vault -ti vault-0 -- vault auth enable kubernetes
 
 
+
+#
+# if vault NOT running on OpenShift/Kubernetes - long-lived Token
+# ---
+
 oc exec -n vault -ti vault-0 -- \
   vault write auth/kubernetes/config \
+    disable_local_ca_jwt=true \
   token_reviewer_jwt="$SA_JWT_TOKEN" \
   kubernetes_host="$OCP_HOST" \
   kubernetes_ca_cert="$SA_CA_CRT" \
+  issuer="$ISSUER" \
+  token_audience="$AUDIENCE"
+
+# ---
+# if vault NOT running on OpenShift/Kubernetes - long-lived Token
+#
+
+
+oc exec -n vault -ti vault-0 -- \
+  vault write auth/kubernetes/config \
+  kubernetes_host="$OCP_HOST" \
   issuer="$ISSUER" \
   token_audience="$AUDIENCE"
 
