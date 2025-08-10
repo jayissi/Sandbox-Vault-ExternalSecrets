@@ -59,7 +59,7 @@ oc exec -n vault -ti vault-0 -- vault auth enable kubernetes
 
 oc exec -n vault -ti vault-0 -- \
   vault write auth/kubernetes/config \
-    disable_local_ca_jwt=true \
+  disable_local_ca_jwt=true \
   token_reviewer_jwt="$SA_JWT_TOKEN" \
   kubernetes_host="$OCP_HOST" \
   kubernetes_ca_cert="$SA_CA_CRT" \
