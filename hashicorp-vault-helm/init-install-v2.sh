@@ -18,7 +18,6 @@ readonly VAULT_INIT_SECRET_NAME="vault-operator-init"
 readonly UNSEAL_SHARES=5
 readonly UNSEAL_THRESHOLD=3
 readonly VAULT_NAMESPACE="vault"
-readonly TEMP_DIR=$(mktemp --directory --tmpdir="${PWD}")
 
 # Logging colors
 readonly RED='\033[0;31m'
@@ -68,12 +67,6 @@ function trace() {
     fi
 }
 
-function cleanup() {
-  debug "Cleaning up temporary directory: ${TEMP_DIR}"
-  rm -rf "${TEMP_DIR}"
-  log "SUCCESS" "HashiCorp Vault Deployment Successful"
-}
-
 # Reusable function to execute commands in a Vault pod
 function exec_in_vault_pod() {
   local pod_index="${1}"
@@ -120,30 +113,32 @@ function initialize_vault() {
         -key-threshold "${UNSEAL_THRESHOLD}"
   )
   
-  # Create individual JSON files for each key in the temp directory
-  for k in $(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r 'keys[]'); do
-    echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r --arg k "$k" '.[$k]' > "${TEMP_DIR}/$k.json"
-  done
-  
-  # Create the secret using a preferred method
+  # Extract keys and values directly from VAULT_KEYS_PAYLOAD
   local SECRET_ARGS=()
-  debug "Building secret arguments"
-  for f in "${TEMP_DIR}"/*.json; do
-      [[ -e "$f" ]] || continue
-      local key=$(basename "$f" .json)
-      debug "Adding secret argument: --from-file=${key}=${f}"
-      SECRET_ARGS+=( "--from-file=${key}=${f}" )
-  done
+  debug "Building secret arguments from JSON payload"
+
+  # Extract keys and values directly from VAULT_KEYS_PAYLOAD
+  while IFS= read -r key; do
+      # Get the value for each key into local variables
+      local value
+      value=$(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r --arg k "$key" '.[$k]')
+      
+      # Verify we got a valid value
+      if [[ -z "$value" ]]; then
+          log "ERROR" "Empty value for key: $key"
+          exit 1
+      fi
+      
+      debug "Adding secret argument: --from-literal=${key}=${value}"
+      SECRET_ARGS+=( "--from-literal=${key}=${value}" )
+  done < <(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r 'keys[]')
 
   # Debug: Show final arguments
   debug "Final SECRET_ARGS: ${SECRET_ARGS[@]}"
-  debug "Creating Kubernetes secret ${VAULT_INIT_SECRET_NAME} in namespace ${VAULT_NAMESPACE}"
 
-  "${OC}" create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}"
-
-  # Debug: Remove *.json files
-  debug "Remove temp *.json files"
-  rm -rf "${TEMP_DIR}"/*.json
+  # Create the secret - SECRET_ARGS must remain available after the loop
+  debug "Executing: oc create -n ${VAULT_NAMESPACE} secret generic ${VAULT_INIT_SECRET_NAME} ${SECRET_ARGS[@]}"
+  oc create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}"
 
   check_command_status "oc create secret"
 
@@ -229,7 +224,6 @@ function join_cluster() {
 # Main function
 function main() {
 echo -e "\033c" # clear screen
-trap cleanup EXIT
 validate_dependencies
 
 initialize_vault
