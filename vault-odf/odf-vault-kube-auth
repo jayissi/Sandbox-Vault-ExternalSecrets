@@ -7,7 +7,10 @@ Pt.2 -> https://developers.redhat.com/articles/2025/07/15/enhance-data-security-
 # ---
 
 oc -n openshift-storage create serviceaccount odf-vault-auth
-oc -n openshift-storage create clusterrolebinding vault-tokenreview-binding --clusterrole=system:auth-delegator --serviceaccount=openshift-storage:odf-vault-auth
+
+oc -n openshift-storage create clusterrolebinding vault-tokenreview-binding \
+  --clusterrole=system:auth-delegator \
+  --serviceaccount=openshift-storage:odf-vault-auth
 
 cat <<EOF | oc create -f -
 apiVersion: v1
@@ -59,12 +62,12 @@ oc exec -n vault -ti vault-0 -- vault auth enable kubernetes
 
 oc exec -n vault -ti vault-0 -- \
   vault write auth/kubernetes/config \
-  disable_local_ca_jwt=true \
-  token_reviewer_jwt="$SA_JWT_TOKEN" \
-  kubernetes_host="$OCP_HOST" \
-  kubernetes_ca_cert="$SA_CA_CRT" \
-  issuer="$ISSUER" \
-  token_audience="$AUDIENCE"
+    disable_local_ca_jwt=true \
+    token_reviewer_jwt="$SA_JWT_TOKEN" \
+    kubernetes_host="$OCP_HOST" \
+    kubernetes_ca_cert="$SA_CA_CRT" \
+    issuer="$ISSUER" \
+    token_audience="$AUDIENCE"
 
 # ---
 # if vault NOT running on OpenShift/Kubernetes - long-lived Token
@@ -73,9 +76,9 @@ oc exec -n vault -ti vault-0 -- \
 
 oc exec -n vault -ti vault-0 -- \
   vault write auth/kubernetes/config \
-  kubernetes_host="$OCP_HOST" \
-  issuer="$ISSUER" \
-  token_audience="$AUDIENCE"
+    kubernetes_host="$OCP_HOST" \
+    issuer="$ISSUER" \
+    token_audience="$AUDIENCE"
 
 
 oc exec -n vault -ti vault-0 -- vault secrets enable -path=odf kv-v2
@@ -93,27 +96,27 @@ EOF
 
 oc exec -n vault -ti vault-0 -- \
     vault write auth/kubernetes/role/odf-rook-ceph-op \
-    bound_service_account_names=rook-ceph-system,rook-ceph-osd,noobaa \
-    bound_service_account_namespaces=openshift-storage \
-    policies=odf \
-    ttl=1440h \
-    audience="$AUDIENCE"
+      bound_service_account_names=rook-ceph-system,rook-ceph-osd,noobaa \
+      bound_service_account_namespaces=openshift-storage \
+      policies=odf \
+      ttl=1440h \
+      audience="$AUDIENCE"
 
 oc exec -n vault -ti vault-0 -- \
     vault write auth/kubernetes/role/odf-rook-ceph-osd \
-    bound_service_account_names=rook-ceph-osd \
-    bound_service_account_namespaces=openshift-storage \
-    policies=odf \
-    ttl=1440h \
-    audience="$AUDIENCE"
+      bound_service_account_names=rook-ceph-osd \
+      bound_service_account_namespaces=openshift-storage \
+      policies=odf \
+      ttl=1440h \
+      audience="$AUDIENCE"
 
 oc exec -n vault -ti vault-0 -- \
     vault write auth/kubernetes/role/csi-kubernetes \
-    bound_service_account_names=ceph-csi-vault-sa \
-    bound_service_account_namespaces='*' \
-    policies=odf \
-    ttl=1440h \
-    audience="$AUDIENCE"
+      bound_service_account_names=ceph-csi-vault-sa \
+      bound_service_account_namespaces='*' \
+      policies=odf \
+      ttl=1440h \
+      audience="$AUDIENCE"
 
 
 <Deploy ODF>
