@@ -87,7 +87,7 @@ define install_vault
 		--set server.route.host=$(3) \
 		--set server.dataStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 		--set server.auditStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
-		-f https://raw.githubusercontent.com/hashicorp/vault-helm/refs/heads/main/values.yaml \
+		-f https://github.com/hashicorp/vault-helm/raw/main/values.yaml \
 		-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 		$(foreach file,$(4),-f $(file)) \
 		-n $(2) \

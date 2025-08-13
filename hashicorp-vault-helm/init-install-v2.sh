@@ -8,7 +8,7 @@ DEBUG=false
 TRACE=false
 
 # Enable trace mode only if both DEBUG and TRACE are true
-if ${DEBUG} && ${TRACE}; then
+if [[ "${DEBUG}" == true && "${TRACE}" == true ]]; then
     set -x
 fi
 
@@ -54,7 +54,7 @@ function log() {
 }
 
 function debug() {
-  if [ "${DEBUG}" = true ]; then
+  if [ "${DEBUG}" == true ]; then
     log "DEBUG" "${1}" >&2
   fi
 }
@@ -62,7 +62,7 @@ function debug() {
 # Trace logging function
 function trace() {
     local message="${1}"
-    if ${DEBUG} && ${TRACE}; then
+    if [[ "${DEBUG}" == true && "${TRACE}" == true ]]; then
         log "TRACE" "${message}" >&2
     fi
 }
@@ -121,7 +121,7 @@ function initialize_vault() {
   while IFS= read -r key; do
       # Get the value for each key into local variables
       local value
-      value=$(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r --arg k "$key" '.[$k]')
+      value="$(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r --arg k "$key" '.[$k]')"
       
       # Verify we got a valid value
       if [[ -z "$value" ]]; then
@@ -145,12 +145,12 @@ function initialize_vault() {
   # Print the Vault URL and the root token from var ${VAULT_KEYS_PAYLOAD}
   local VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
   echo "Vault URL: ${VAULT_URL}"
-  echo "Vault initialization complete. Root token: $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')"
+  echo "Vault initialization complete. Root token: $(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r '.root_token')"
 }
 
 function unseal_vault() {
   local pod_index=${1}
-  local unseal_keys=($(echo "${VAULT_KEYS_PAYLOAD}" | ${JQ} -r ".unseal_keys_b64[]"))
+  local unseal_keys=($(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r ".unseal_keys_b64[]"))
   
   debug "Unsealing Vault pod 'vault-${pod_index}'"
   for key_index in $(shuf -i 0-$((UNSEAL_SHARES - 1)) -n ${UNSEAL_THRESHOLD}); do
@@ -225,12 +225,18 @@ function join_cluster() {
 function main() {
 echo -e "\033c" # clear screen
 validate_dependencies
-
 initialize_vault
 
-for pod_index in $("${OC}" get pods -n "${VAULT_NAMESPACE}" -o=jsonpath='{.items[?(@.metadata.labels.app\.kubernetes\.io\/name=="vault")].metadata.labels.apps\.kubernetes\.io\/pod-index}'); do
-  if [[ "${pod_index}" -gt 0 ]]; then
-    join_cluster "${pod_index}"
+mapfile -t pod_indices < <(
+  "${OC}" get pods -n "${VAULT_NAMESPACE}" \
+    -o=jsonpath='{.items[?(@.metadata.labels.app\.kubernetes\.io/name=="vault")].metadata.labels.apps\.kubernetes\.io/pod-index}' \
+    | tr ' ' '\n' \
+    | sort -n
+)
+
+for pod_index in "${pod_indices[@]}"; do
+  if (( pod_index > 0 )); then
+      join_cluster "${pod_index}"
   fi
   unseal_vault "${pod_index}"
   first_vault_login_with_root_token "${pod_index}"
