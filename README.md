@@ -21,7 +21,7 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
     - [Clone the Repository](#clone-the-repository)
     - [Define the environment](#define-the-environment)
     - [Execute Makefile](#execute-makefile)
-  - [Trust But Verify](#trust-but-verify)
+    - [Trust, but verify](#trust-but-verify)
     - [Verify HashiCorp Vault](#verify-hashicorp-vault)
     - [Verify External Secrets Operator](#verify-external-secrets-operator)
     - [Validate demo secret content in OpenShift](#validate-demo-secret-content-in-openshift)
@@ -161,7 +161,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 ---
 
-## Trust But Verify
+### Trust, but verify
 
 Execute the `Makefile` verify scripts to validate the configuration is successful.
 
