@@ -34,16 +34,16 @@ SA_CA_CRT=$(oc -n openshift-storage get secret odf-vault-auth-token -o jsonpath=
 
 OCP_HOST=$(oc config view --minify --flatten -o jsonpath="{.clusters[0].cluster.server}")
 ISSUER=$(oc get --raw /.well-known/openid-configuration | jq -r .issuer)
-AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token | jq -r '.spec.audiences' | jq -r .[0])
+AUDIENCE=$(echo '{"apiVersion":"authentication.k8s.io/v1","kind":"TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token | jq -r '.status.token' | cut -d . -f2 | base64 -d | jq -r '.aud[0]')
 
 
 #
 # https://developer.hashicorp.com/vault/docs/auth/kubernetes#discovering-the-service-account-issuer
 #
 
-#ISSUER=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token  | jq -r '.status.token'  | cut -d . -f2 | base64 -d | jq '.iss')
-
-#AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
+# ISSUER=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token  | jq -r '.status.token'  | cut -d . -f2 | base64 -d | jq '.iss')
+# AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token | jq -r '.spec.audiences' | jq -r .[0])
+# AUDIENCE=$(echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
 #  | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token \
 #  | jq -r '.status.token' \
 #  | cut -d . -f2 \
@@ -121,28 +121,90 @@ oc exec -n vault -ti vault-0 -- \
 
 <Deploy ODF>
 
+#<PER NameSpace>
+#
+#cat <<EOF | oc apply -f -
+#kind: ConfigMap
+#apiVersion: v1
+#metadata:
+#  name: csi-kms-connection-details
+#  namespace: default
+#data:
+#  vault-tenant-sa: |-
+#    {
+#      "encryptionKMSType": "vaulttenantsa",
+#      "vaultAddress": "http://vault.vault.svc.cluster.local:8200",
+#      "vaultTLSServerName": "",
+#      "vaultAuthPath": "kubernetes",
+#      "vaultBackendPath": "odf",
+#      "tenantSAName": "ceph-csi-vault-sa"
+#    }
+#EOF
 
-
-<PER NameSpace>
-
-cat <<EOF | oc apply -f -
-kind: ConfigMap
-apiVersion: v1
+---
+apiVersion: authorization.openshift.io/v1
+kind: Role
 metadata:
-  name: csi-kms-connection-details
-  namespace: default
-data:
-  vault-tenant-sa: |-
-    {
-      "encryptionKMSType": "vaulttenantsa",
-      "vaultAddress": "http://vault.vault.svc.cluster.local:8200",
-      "vaultTLSServerName": "",
-      "vaultAuthPath": "kubernetes",
-      "vaultBackendPath": "odf",
-      "tenantSAName": "ceph-csi-vault-sa"
-    }
-EOF
+  name: view-csi-kms-connection-details
+  namespace: openshift-storage
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  resourceNames:
+  - csi-kms-connection-details
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: view-csi-kms-connection-details
+  namespace: openshift-storage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: view-csi-kms-connection-details
+  namespace: openshift-storage
+subjects:
+  - kind: ServiceAccount
+    name: ceph-csi-vault-sa
+#    namespace: '*'
 
-oc create sa ceph-csi-vault-sa -n default
+oc create sa ceph-csi-vault-sa -n $NS
 
-oc adm policy add-role-to-user system:auth-delegator system:serviceaccount:*:ceph-csi-vault-sa
+
+#oc adm policy add-role-to-user system:auth-delegator system:serviceaccount:*:ceph-csi-vault-sa
+
+
+##kind: RoleBinding
+#kind: ClusterRoleBinding
+#apiVersion: authorization.openshift.io/v1
+#metadata:
+#  name: 'system:auth-delegator'
+##  namespace: test
+#userNames:
+#  - 'system:serviceaccount:*:ceph-csi-vault-sa'
+#subjects:
+#  - kind: SystemUser
+#    name: 'system:serviceaccount:*:ceph-csi-vault-sa'
+#roleRef:
+#  name: 'system:auth-delegator'
+
+#---
+#apiVersion: rbac.authorization.k8s.io/v1
+#kind: RoleBinding
+##kind: ClusterRoleBinding
+#metadata:
+#  name: ceph-csi-vault-sa
+#  namespace: test
+#roleRef:
+#  apiGroup: rbac.authorization.k8s.io
+#  kind: ClusterRole
+#  name: 'system:auth-delegator'
+#subjects:
+#  - kind: ServiceAccount
+#    name: ceph-csi-vault-sa
+#    namespace: '*'
+#
