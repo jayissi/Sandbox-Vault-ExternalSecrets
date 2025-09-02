@@ -81,9 +81,10 @@ endef
 # Function to install Vault
 define install_vault
 	@echo "Installing Vault from chart $(1)..."
-	@helm install \
+	@helm upgrade \
 		vault \
 		$(1) \
+		--install \
 		--set server.route.host=$(3) \
 		--set server.dataStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \
 		--set server.auditStorage.storageClass=$(DEFAULT_STORAGE_CLASS) \

@@ -56,9 +56,10 @@ endef
 # Function to install a Helm chart
 define install_chart
 	@echo "Installing Helm chart $(1)..."
-	@helm install \
+	@helm upgrade \
 		$(HELM_REPO) \
 		$(1) \
+		--install \
 		-f $(3) \
 		-n $(2) \
 		--create-namespace \
