@@ -246,6 +246,7 @@ done
 log "INFO" "Enabling 'secret/' KV-V2 Secret Engine"
 exec_in_vault_pod 0 vault secrets enable --version=2 --path=secret kv
 check_command_status "vault secrets enable"
+log "SUCCESS" "Hashicorp Vault Setup Completed"
 }
 
 # Execute main function

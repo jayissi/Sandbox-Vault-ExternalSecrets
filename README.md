@@ -1,8 +1,10 @@
 # Sandbox Vault ExternalSecrets
 
-![License: GNU GPL v3.0](https://img.shields.io/badge/License-GNU%20General%20Public%20License%20v3.0-blue)
-![Supported Platforms: RHEL | Linux](https://img.shields.io/badge/Supported%20Platforms-RHEL%20%7C%20Linux-EE0000)
-![Helm](https://img.shields.io/badge/Helm-v3.12%2B-blue.svg)
+[![RHEL 9+](https://img.shields.io/badge/RHEL-9+-ee0000?logo=redhat&logoColor=ee0000)](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux) <!-- https://www.redhat.com/en/about/brand/standards/color -->
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.31+-326CE5?logo=kubernetes&logoColor=326CE5)](https://kubernetes.io/)
+[![Openshift](https://img.shields.io/badge/Openshift-v4.16+-EE0000?logo=redhatopenshift&logoColor=EE0000)](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux) <!-- https://www.redhat.com/en/about/brand/standards/color -->
+[![Helm](https://img.shields.io/badge/Helm-v3.12+-0F1689?logo=helm&logoColor=0F1689)](https://helm.sh/docs)
+[![GNU GPL v3.0](https://img.shields.io/badge/GNU%20GPL-v3.0-A42E2B?logo=gnu&logoColor=A42E2B)](https://www.gnu.org/licenses)
 
 ---
 
