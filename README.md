@@ -100,9 +100,14 @@ For advanced configurations, refer to:
 1. **Install Helm**
 
    ```bash
-   mkdir $HOME/bin/
-   curl -fqsLk https://get.helm.sh/helm-v3.17.0-linux-amd64.tar.gz | tar xvz -C $HOME/bin/
-   mv $HOME/bin/linux-amd64/helm $HOME/bin/ && rm -r $HOME/bin/linux-amd64
+   mkdir ${HOME}/bin/
+   curl -qsL https://github.com/helm/helm/releases/latest \
+     | awk '/linux-amd64/ {print $2}' \
+     | awk -F '=' '{ gsub("\"",""); print $2 }' \
+     | xargs curl -fqsLk \
+     | tar xvzp -C ${HOME}/bin/
+   mv ${HOME}/bin/linux-amd64/helm ${HOME}/bin/
+   rm -r ${HOME}/bin/linux-amd64
    ```
 <br>
 
