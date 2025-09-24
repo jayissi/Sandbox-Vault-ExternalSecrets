@@ -172,6 +172,8 @@ function verify_approle_secret() {
     echo "$ ${OC} get secret ${approle_vault_secret} -n demo"
     "${OC}" get secret "${approle_vault_secret}" -n demo
 
+    echo " "
+
     # Base64 decode the secret content
     debug "Decoding the '${approle_vault_secret}' secret content..."
     local secret_content
@@ -193,6 +195,8 @@ function verify_demo_secret() {
     echo "$ ${OC} get secret ${demo_vault_secret} -n demo"
     "${OC}" get secret "${demo_vault_secret}" -n demo
 
+    echo " "
+
     # Base64 decode the secret content
     debug "Decoding the ${demo_vault_secret}' secret content..."
     local secret_content
@@ -200,6 +204,16 @@ function verify_demo_secret() {
     debug "Decoded secret content: ${secret_content}"
     echo "$ ${OC} get secret ${demo_vault_secret} -n demo -o jsonpath='{.data}' | ${JQ} -r 'to_entries[] | \"\(.key): \(.value | @base64d)\"'"
     echo "${secret_content}"
+
+    echo " "
+    
+    # Base64 decode the extract content
+    debug "Extracting ${demo_vault_secret}' and decode content..."
+    local extract_content
+    extract_content="${OC} extract secret/${demo_vault_secret} -n demo --to=-"
+    debug "Extract and decoded content: ${extract_content}"
+    echo "$ "${OC}" extract secret/"${demo_vault_secret}" -n demo --to=-"
+    ${extract_content}
 }
 
 # Function to verify Vault objects (policy, secret, and auth method)
