@@ -143,12 +143,15 @@ Set the `VAULT_ENV` variable based on your target environment:
 |  `dev`  | Deploy a single Vault instance in "Dev" server mode. |
 |  `lab`  | Deploy a single instance with auto initialization, unsealing, and auditing. |
 |  `prod` | Deploy 3 High Availability (HA) instances with auto initialization, unsealing, and auditing. |
+|  `dev-demo`   | Same as `dev` with External Secrets Operator and demo test data.  |
+|  `lab-demo`   | Same as `lab` with External Secrets Operator and demo test data.  |
+|  `prod-demo`  | Same as `prod` with External Secrets Operator and demo test data. |
 
 <br>
    Example:
    
    ```bash
-   export VAULT_ENV=prod  # Options: 'dev', 'lab', or 'prod'
+   export VAULT_ENV="prod-demo"
    ```
 <br>
 

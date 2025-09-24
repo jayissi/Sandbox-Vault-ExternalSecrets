@@ -5,7 +5,7 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Phony targets (targets that are not files)
-.PHONY: dev lab prod verify clean clean-demo clean-es clean-hv help
+.PHONY: dev lab prod dev-demo lab-demo prod-demo eso verify clean clean-demo clean-eso clean-hv help
 
 # Directories
 VAULT_DIR := ./hashicorp-vault-helm
@@ -15,32 +15,52 @@ LAB_DIR := ./vault-external-secrets-lab
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
 
-# Run development environment setup
+# Deploy HashiCorp Vault development environment only
 dev:
-	@echo "Setting up development environment..."
+	@echo "Installing HashiCorp Vault (development mode only)..."
+	@$(call run_make,dev,$(VAULT_DIR))
+
+# Deploy HashiCorp Vault lab environment only
+lab:
+	@echo "Installing HashiCorp Vault (lab mode only)..."
+	@$(call run_make,lab,$(VAULT_DIR))
+
+# Deploy HashiCorp Vault production environment only
+prod:
+	@echo "Installing HashiCorp Vault (production mode only)..."
+	@$(call run_make,prod,$(VAULT_DIR))
+
+# Deploy development environment setup w/ demo
+dev-demo:
+	@echo "Setting up development environment (Vault + ESO + demo)..."
 	@$(call run_make,dev,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
 	@$(call run_make,verify,$(LAB_DIR))
 	@echo "Development environment setup completed."
 
-# Run lab environment setup
-lab:
-	@echo "Setting up lab environment..."
+# Deploy lab environment setup w/ demo
+lab-demo:
+	@echo "Setting up lab environment (Vault + ESO + demo)..."
 	@$(call run_make,lab,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
 	@$(call run_make,verify,$(LAB_DIR))
 	@echo "Lab environment setup completed."
 
-# Run production environment setup
-prod:
-	@echo "Setting up production environment..."
+# Deploy production environment setup w/ demo
+prod-demo:
+	@echo "Setting up production environment (Vault + ESO + demo)..."
 	@$(call run_make,prod,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
 	@$(call run_make,verify,$(LAB_DIR))
 	@echo "Production environment setup completed."
+
+# Deploy External Secrets Operator only
+eso:
+	@echo "Installing External Secrets only..."
+	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 
 # Verify the setup by running the verify-vault-openshift.sh script
 verify:
@@ -49,7 +69,7 @@ verify:
 	@echo "Verification script completed."
 
 # Clean all environments
-clean: clean-demo clean-es clean-hv
+clean: clean-demo clean-eso clean-hv
 	@echo "All environments cleaned."
 
 # Clean demo environment
@@ -59,7 +79,7 @@ clean-demo:
 	@echo "Demo environment cleaned."
 
 # Clean external-secrets environment
-clean-es:
+clean-eso:
 	@echo "Cleaning external-secrets environment..."
 	@-$(call run_make,clean,$(EXTERNAL_SECRETS_DIR),true)
 	@echo "External-secrets environment cleaned."
@@ -75,14 +95,19 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
-	@echo "  dev         Set up the development environment"
-	@echo "  lab         Set up the lab environment"
-	@echo "  prod        Set up the production environment"
-	@echo "  clean       Clean all environments (demo, external-secrets, hashicorp-vault)"
-	@echo "  clean-demo  Clean the demo environment"
-	@echo "  clean-es    Clean the external-secrets environment"
-	@echo "  clean-hv    Clean the hashicorp-vault environment"
-	@echo "  help        Display this help message"
+	@echo "  dev           Install HashiCorp Vault (dev mode only)"
+	@echo "  lab           Install HashiCorp Vault (lab mode only)"
+	@echo "  prod          Install HashiCorp Vault (prod mode only)"
+	@echo "  dev-demo      Deploy full dev setup (Vault + ESO + demo)"
+	@echo "  lab-demo      Deploy full lab setup (Vault + ESO + demo)"
+	@echo "  prod-demo     Deploy full prod setup (Vault + ESO + demo)"
+	@echo "  eso           Install ESO only (no Vault/demo)"
+	@echo "  verify        Validate (Vault + ESO + demo) configuration"
+	@echo "  clean         Clean all environments (demo, external-secrets, hashicorp-vault)"
+	@echo "  clean-demo    Clean the demo environment"
+	@echo "  clean-eso     Clean the external-secrets environment"
+	@echo "  clean-hv      Clean the hashicorp-vault environment"
+	@echo "  help          Display this help message"
 
 # Function to run make in a directory
 define run_make
