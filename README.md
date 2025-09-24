@@ -13,6 +13,7 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
 ---
 
 ## Table of Contents
+
 - [Sandbox Vault ExternalSecrets](#sandbox-vault-externalsecrets)
   - [Table of Contents](#table-of-contents)
   - [Summary](#summary)
@@ -29,11 +30,11 @@ Welcome to the **Sandbox Vault External Secrets** project! This project serves a
     - [Validate demo secret content in OpenShift](#validate-demo-secret-content-in-openshift)
   - [How It All Comes Together](#how-it-all-comes-together)
   - [Architecture Overview](#architecture-overview)
-    - [**Vault Deployment**:](#vault-deployment)
-    - [**Vault Unsealing**:](#vault-unsealing)
-    - [**External Secrets Operator**:](#external-secrets-operator)
-    - [**Demo secret Creation in Vault**:](#demo-secret-creation-in-vault)
-    - [**Syncing Vault Secrets to OpenShift**:](#syncing-vault-secrets-to-openshift)
+    - [**Vault Deployment**](#vault-deployment)
+    - [**Vault Unsealing**](#vault-unsealing)
+    - [**External Secrets Operator**](#external-secrets-operator)
+    - [**Demo secret Creation in Vault**](#demo-secret-creation-in-vault)
+    - [**Syncing Vault Secrets to OpenShift**](#syncing-vault-secrets-to-openshift)
   - [Uninstall](#uninstall)
   - [License](#license)
 
@@ -85,8 +86,9 @@ Date: Saturday 2025-08-09 22:08:57
 ## Installation and Configuration
 
 For advanced configurations, refer to:  
+
 - [HashiCorp Vault Documentation](https://developer.hashicorp.com/vault/docs)  
-- [External Secrets Operator Documentation](https://external-secrets.io/) 
+- [External Secrets Operator Documentation](https://external-secrets.io/)
 
 <br>
 
@@ -99,29 +101,31 @@ For advanced configurations, refer to:
 
 1. **Install Helm**
 
-   ```bash
-   mkdir ${HOME}/bin/
-   curl -qsL https://github.com/helm/helm/releases/latest \
-     | awk '/linux-amd64/ {print $2}' \
-     | awk -F '=' '{ gsub("\"",""); print $2 }' \
-     | xargs curl -fqsLk \
-     | tar xvzp -C ${HOME}/bin/
-   mv ${HOME}/bin/linux-amd64/helm ${HOME}/bin/
-   rm -r ${HOME}/bin/linux-amd64
-   ```
-<br>
+    ```bash
+    mkdir ${HOME}/bin/
+    curl -qsL https://github.com/helm/helm/releases/latest \
+      | awk '/linux-amd64/ {print $2}' \
+      | awk -F '=' '{ gsub("\"",""); print $2 }' \
+      | xargs curl -fqsLk \
+      | tar xvzp -C ${HOME}/bin/
+    mv ${HOME}/bin/linux-amd64/helm ${HOME}/bin/
+    rm -r ${HOME}/bin/linux-amd64
+    ```
 
-> [!WARNING]
-> This example uses ***Linux x86_64*** processor architecture.     
-> Modify the architecture for your system as needed. [Find the appropriate version here](https://github.com/helm/helm/releases/latest).
+    <br>
 
-<br>
+    > [!WARNING]
+    > This example uses ***Linux x86_64*** processor architecture.
+    > Modify the architecture for your system as needed. [Find the appropriate version here](https://github.com/helm/helm/releases/latest).
+
+    <br>
 
 2. **Install Required Packages**
 
    ```bash
    sudo dnf install -y make jq git
    ```
+
 ---
 
 ### Clone the Repository
@@ -132,6 +136,7 @@ For advanced configurations, refer to:
    git clone https://github.com/jayissi/Sandbox-Vault-ExternalSecrets.git
    cd Sandbox-Vault-ExternalSecrets
    ```
+
 ---
 
 ### Define the environment
@@ -149,14 +154,15 @@ Set the `VAULT_ENV` variable based on your target environment:
 
 <br>
    Example:
-   
+
    ```bash
    export VAULT_ENV="prod-demo"
    ```
+
 <br>
 
   > [!NOTE]
-  > `dev` will configure HashiCorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).     
+  > `dev` will configure HashiCorp Vault into ["Dev" server mode](https://developer.hashicorp.com/vault/docs/concepts/dev-server).
   > Vault will be automatically initialized and unsealed.
 
 ---
@@ -164,7 +170,7 @@ Set the `VAULT_ENV` variable based on your target environment:
 ### Execute Makefile
 
    Execute the `Makefile` to deploy the environment:
-   
+
    ```bash
    make $VAULT_ENV
    ```
@@ -183,119 +189,121 @@ make verify
 
 <br>
 
-  1. Confirm vault pods are running
+1. Confirm vault pods are running
 
-  ```bash
-  oc get pods -n vault -l app.kubernetes.io/name=vault
-  ```
-<br>
+    ```bash
+    oc get pods -n vault -l app.kubernetes.io/name=vault
+    ```
 
-<p align="center">
-    <img src="images/vault/verify-vault-pods.png" align="center" alt="external-secrets">
-</p>
+    <br>
 
-<br>
-<br>
+    <p align="center">
+        <img src="images/vault/verify-vault-pods.png" align="center" alt="external-secrets">
+    </p>
 
-  2. Verify vault status
+    <br>
+    <br>
 
-  ```bash
-  for pod in $(oc get pods -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}')
-  do
-    echo "Status for $pod:"
-    oc exec -n vault $pod -- vault status
-    echo "---------------------------"
-  done
-  ```
+2. Verify vault status
 
-<br>
+    ```bash
+    for pod in $(oc get pods -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}')
+    do
+      echo "Status for $pod:"
+      oc exec -n vault $pod -- vault status
+      echo "---------------------------"
+    done
+    ```
 
-<p align="center">
-    <img src="images/vault/verify-vault-status.png" align="center" alt="external-secrets">
-</p>
+    <br>
 
-<br>
-<br>
+    <p align="center">
+        <img src="images/vault/verify-vault-status.png" align="center" alt="external-secrets">
+    </p>
 
-  3. List the raft peers in vault cluster
+    <br>
+    <br>
 
-  ```bash
-  oc exec -n vault vault-0 -- vault operator raft list-peers
-  ```
+3. List the raft peers in vault cluster
 
-<br>
+    ```bash
+    oc exec -n vault vault-0 -- vault operator raft list-peers
+    ```
 
-<p align="center">
-    <img src="images/vault/verify-vault-raft-peers.png" align="center" alt="external-secrets">
-</p>
+    <br>
 
-<br>
+    <p align="center">
+        <img src="images/vault/verify-vault-raft-peers.png" align="center" alt="external-secrets">
+    </p>
+
+    <br>
 
 ### Verify External Secrets Operator
 
 <br>
 
-  1. Confirm external-secrets pods are running
+1. Confirm external-secrets pods are running
 
-  ```bash
-  oc get pods -n external-secrets
-  ```
-<br>
+    ```bash
+    oc get pods -n external-secrets
+    ```
 
-<p align="center">
-    <img src="images/eso/verify-external-secrets-pods.png" align="center" alt="external-secrets">
-</p>
+    <br>
 
-<br>
-<br>
+    <p align="center">
+        <img src="images/eso/verify-external-secrets-pods.png" align="center" alt="external-secrets">
+    </p>
 
-  2. Validate secret store status is true
+    <br>
+    <br>
 
-  ```bash
-  oc get secretstores.external-secrets.io vault -n demo -o jsonpath='{.status.conditions}' | jq
-  ```
+2. Validate secret store status is true
 
-<br>
+    ```bash
+    oc get secretstores.external-secrets.io vault -n demo -o jsonpath='{.status.conditions}' | jq
+    ```
 
-<p align="center">
-    <img src="images/eso/verify-secret-store-status.png" align="center" alt="external-secrets">
-</p>
+    <br>
 
-<br>
-<br>
+    <p align="center">
+        <img src="images/eso/verify-secret-store-status.png" align="center" alt="external-secrets">
+    </p>
 
- 3. Verify external secrets secret is synced 
+    <br>
+    <br>
 
-  ```bash
-  oc get externalsecrets.external-secrets.io vault -n demo -o json | jq '.status | {binding, conditions}'
-  ```
+3. Verify external secrets secret is synced
 
-<br>
+    ```bash
+    oc get externalsecrets.external-secrets.io vault -n demo -o json | jq '.status | {binding, conditions}'
+    ```
 
-<p align="center">
-    <img src="images/eso/verify-external-secrets-sync.png" align="center" alt="external-secrets">
-</p>
+    <br>
 
-<br>
+    <p align="center">
+        <img src="images/eso/verify-external-secrets-sync.png" align="center" alt="external-secrets">
+    </p>
+
+    <br>
 
 ### Validate demo secret content in OpenShift
 
 <br>
 
-  1. Display the decoded contents of `secret/demo`
+1. Display the decoded contents of `secret/demo`
 
-  ```bash 
-  oc get secret demo -n demo -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key): \(.value | @base64d)"'
-  ```
+    ```bash
+    oc get secret demo -n demo -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key): \(.value | @base64d)"'
+    ```
 
-<br>
-<br>
+    <br>
+    <br>
 
-<p align="center">
-    <img src="images/secret-sync/verify-demo-secret-content.png" align="center" alt="deployment-success">
-</p>
+    <p align="center">
+        <img src="images/secret-sync/verify-demo-secret-content.png" align="center" alt="deployment-success">
+    </p>
 
-<br>
+    <br>
 
 ---
 
@@ -317,35 +325,40 @@ The following key tasks are performed:
 
 <br>
 
-### **Vault Deployment**:
+### **Vault Deployment**
+
 - **What it is**: HashiCorp Vault is a robust **secrets management tool** designed to securely store, access, and manage sensitive data such as credentials, tokens, and configuration details.
 - **How it works**: Vault is deployed on OpenShift using its **official Helm chart**, which simplifies the installation process. The deployment is configured to support multiple environments (e.g., development, staging, production), ensuring flexibility and scalability.
 - **Why it’s needed**: Vault acts as a **centralized and secure repository** for managing secrets. By integrating with OpenShift, it provides a reliable mechanism for applications to securely access sensitive data without exposing it in plaintext.
 
 <br>
 
-### **Vault Unsealing**:
+### **Vault Unsealing**
+
 - **What it is**: Vault operates in a **sealed state** by default, meaning it cannot access its stored secrets until it is unsealed. Unsealing is the process of decrypting the storage backend and initializing Vault for operation.
 - **How it works**: The unsealing process is automated using a **Makefile**, which handles the unsealing for both `lab` and `prod` environments. This automation ensures that Vault is operational and ready to serve secrets to external systems like ESO.
 - **Why it’s needed**: Unsealing HashiCorp Vault is a critical step to allow applications to interact with it and retrieve stored secrets. This step ensures that the HashiCorp Vault instance is secure and operational.
 
 <br>
 
-### **External Secrets Operator**:
+### **External Secrets Operator**
+
 - **What it is**: The **External Secrets Operator (ESO)** is a OpenShift operator that synchronizes secrets from external secret management systems (like Vault) into OpenShift secrets.
 - **How it works**: ESO continuously monitors Vault for changes to secrets. When a secret is updated in Vault, ESO automatically synchronizes it to the corresponding Kubernetes secret in OpenShift, ensuring consistency across platforms.
 - **Why it’s needed**: ESO simplifies the integration of external secret stores, like HashiCorp Vault, to manage secrets in OpenShift. It abstracts the complexity of manually managing secrets and makes it easy to access and rotate secrets in a secure and automated way.
 
 <br>
 
-### **Demo secret Creation in Vault**:
+### **Demo secret Creation in Vault**
+
 - **What it is**: A **demo secret** is created in Vault to simulate real-world secret management scenarios. This serves as a practical example of how Vault handles sensitive data.
 - **How it works**: After HashiCorp Vault is deployed and unsealed, the `Makefile` runs a process to inject demo secret (such as credentials, tokens, and configuration details) into HashiCorp Vault. These secrets are then used to simulate a real-world secret management scenario and validate the integration between Vault, ESO, and OpenShift.
 - **Why it’s needed**: The demo secret provides a **simple test case** of how HashiCorp Vault can be used to manage and securely store application secrets. It ensures that secrets can be securely stored, retrieved, and synchronized across platforms.
 
 <br>
 
-### **Syncing Vault Secrets to OpenShift**:
+### **Syncing Vault Secrets to OpenShift**
+
 - **What it is**: This process involves synchronizing secrets stored in Vault to OpenShift as Kubernetes secrets using ESO, making them accessible to applications.
 - **How it works**: ESO actively watches for updates to secrets in Vault. When a change is detected, ESO ensures that the corresponding Kubernetes secret in OpenShift is updated in **real-time**, maintaining consistency between the two systems.
 - **Why it’s needed**: This synchronization ensures that OpenShift applications can securely access secrets managed in Vault without requiring manual updates. It enhances security and operational efficiency by automating secret management.
@@ -355,6 +368,7 @@ The following key tasks are performed:
 ## Uninstall
 
 To clean up resources, run:
+
 ```bash
 make clean
 ```
