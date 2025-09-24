@@ -5,7 +5,7 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Phony targets (targets that are not files)
-.PHONY: dev lab prod dev-demo lab-demo prod-demo eso verify clean clean-demo clean-eso clean-hv help
+.PHONY: dev lab prod dev-demo lab-demo prod-demo eso demo verify clean clean-demo clean-eso clean-hv help
 
 # Directories
 VAULT_DIR := ./hashicorp-vault-helm
@@ -19,16 +19,19 @@ LAB_DIR := ./vault-external-secrets-lab
 dev:
 	@echo "Installing HashiCorp Vault (development mode only)..."
 	@$(call run_make,dev,$(VAULT_DIR))
+	@echo "Development HashiCorp Vault installation completed."
 
 # Deploy HashiCorp Vault lab environment only
 lab:
 	@echo "Installing HashiCorp Vault (lab mode only)..."
 	@$(call run_make,lab,$(VAULT_DIR))
+	@echo "Lab HashiCorp Vault installation completed."
 
 # Deploy HashiCorp Vault production environment only
 prod:
 	@echo "Installing HashiCorp Vault (production mode only)..."
 	@$(call run_make,prod,$(VAULT_DIR))
+	@echo "Production HashiCorp Vault installation completed."
 
 # Deploy development environment setup w/ demo
 dev-demo:
@@ -37,7 +40,7 @@ dev-demo:
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
 	@$(call run_make,verify,$(LAB_DIR))
-	@echo "Development environment setup completed."
+	@echo "Development demo environment setup completed."
 
 # Deploy lab environment setup w/ demo
 lab-demo:
@@ -46,7 +49,7 @@ lab-demo:
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
 	@$(call run_make,verify,$(LAB_DIR))
-	@echo "Lab environment setup completed."
+	@echo "Lab demo environment setup completed."
 
 # Deploy production environment setup w/ demo
 prod-demo:
@@ -55,12 +58,19 @@ prod-demo:
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
 	@$(call run_make,verify,$(LAB_DIR))
-	@echo "Production environment setup completed."
+	@echo "Production demo environment setup completed."
 
 # Deploy External Secrets Operator only
 eso:
-	@echo "Installing External Secrets only..."
+	@echo "Installing External Secrets Operator only..."
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
+	@echo "External Secrets Operator installation completed."
+
+# Configure Hashicorp Vault + External Secrets Operator with demo data
+demo:
+	@echo "Configuring Vault + ESO w/ demo data..."
+	@$(call run_make,demo,$(LAB_DIR))
+	@echo "Demo deployment completed."
 
 # Verify the setup by running the verify-vault-openshift.sh script
 verify:
@@ -98,11 +108,12 @@ help:
 	@echo "  dev           Install HashiCorp Vault (dev mode only)"
 	@echo "  lab           Install HashiCorp Vault (lab mode only)"
 	@echo "  prod          Install HashiCorp Vault (prod mode only)"
-	@echo "  dev-demo      Deploy full dev setup (Vault + ESO + demo)"
-	@echo "  lab-demo      Deploy full lab setup (Vault + ESO + demo)"
-	@echo "  prod-demo     Deploy full prod setup (Vault + ESO + demo)"
 	@echo "  eso           Install ESO only (no Vault/demo)"
+	@echo "  demo          Configure Vault + ESO with demo data (dependent on vault)"
 	@echo "  verify        Validate (Vault + ESO + demo) configuration"
+	@echo "  dev-demo      Deploy full dev setup (Vault + ESO + demo + verify)"
+	@echo "  lab-demo      Deploy full lab setup (Vault + ESO + demo + verify)"
+	@echo "  prod-demo     Deploy full prod setup (Vault + ESO + demo + verify)"
 	@echo "  clean         Clean all environments (demo, external-secrets, hashicorp-vault)"
 	@echo "  clean-demo    Clean the demo environment"
 	@echo "  clean-eso     Clean the external-secrets environment"
