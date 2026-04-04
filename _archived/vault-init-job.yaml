@@ -1,0 +1,21 @@
+# Vault init Job — OpenShift CLI image
+#
+# Set the image tag to your cluster minor (oc get clusterversion) before applying.
+# Example render:
+#   OCP_MINOR="$(oc get clusterversion version -o jsonpath='{.status.desired.version}' | cut -d. -f1,2)"
+#   sed "s|REPLACE_CLUSTER_MINOR|${OCP_MINOR}|g" vault-init-job.yaml | oc apply -f -
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init-cli
+  namespace: vault
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: oc-cli
+          image: quay.io/openshift/origin-cli:REPLACE_CLUSTER_MINOR
+          command: ["/bin/bash", "-c", "echo 'Replace command with vault init steps'; exit 0"]

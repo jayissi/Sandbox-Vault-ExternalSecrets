@@ -34,3 +34,7 @@ server:
     #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
     tls: 
       termination: edge
+
+  # Lab environment uses standalone mode (1 instance)
+  standalone:
+    enabled: true

@@ -1,1 +1,6 @@
-.*
+# Ignore editor / OS dotfiles but not .gitignore itself
+.DS_Store
+.*.swp
+.*.swo
+*.bak
+*.tmp

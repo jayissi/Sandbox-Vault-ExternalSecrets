@@ -1,5 +1,13 @@
 #!/bin/bash
 set -euo pipefail
+#
+# End-to-end smoke test: Vault is serving and configured like post-install, External Secrets Operator
+# is running, SecretStore/ExternalSecret reconcile, the AppRole bootstrap Secret exists, and the
+# demo Secret reflects Vault → ESO → Kubernetes.
+#
+# Intended to run wherever `oc` points (admin laptop, jump host, or a container with kubeconfig
+# mounted)—behavior is identical; only the filesystem path to credentials differs.
+#
 
 # Enable debug mode (true/false)
 DEBUG=false
@@ -111,7 +119,7 @@ function validate_env() {
     echo "${required_vars[@]}"
 }
 
-# Function to verify Vault is running and its URL is responding
+# Fail fast if the Vault route is down—later checks would be noise without a healthy API.
 function verify_vault() {
     debug "Verifying Vault is running and its URL is responding..."
     if ! curl -k -s --head --fail "${VAULT_URL}" &> /dev/null; then
@@ -124,7 +132,7 @@ function verify_vault() {
 
 }
 
-# Function to verify External Secrets Operator is installed and pods are running
+# ESO must be scheduled before any ExternalSecret can sync; this catches a missing install early.
 function verify_external_secrets_operator() {
     debug "Verifying External Secrets Operator is installed and pods are running..."
     if ! "${OC}" get pods -n external-secrets -l app.kubernetes.io/name=external-secrets &> /dev/null; then
@@ -136,7 +144,7 @@ function verify_external_secrets_operator() {
     "${OC}" get pods -n external-secrets -l app.kubernetes.io/name=external-secrets
 }
 
-# Function to verify External Secrets
+# Confirms the ExternalSecret CR exists in the demo namespace (reconciliation target is defined).
 function verify_external_secrets() {
     debug "Verifying External Secrets and Secret Store are working..."
     if ! "${OC}" get externalsecret -n demo &> /dev/null; then
@@ -148,7 +156,7 @@ function verify_external_secrets() {
     "${OC}" get externalsecret -n demo
 }
 
-# Function to verify Secret Stores
+# Confirms the SecretStore CR exists—without it the provider cannot authenticate to Vault.
 function verify_secret_stores() {
     debug "Verifying Secret Stores..."
     if ! "${OC}" get secretstore -n demo &> /dev/null; then
@@ -160,7 +168,7 @@ function verify_secret_stores() {
     "${OC}" get secretstore -n demo
 }
 
-# Function to verify the created secret is available
+# Validates post-install wrote the AppRole credential Secret ESO's SecretStore references.
 function verify_approle_secret() {
     debug "Verifying the created secret is available..."
     local approle_vault_secret="${APPROLE_SECRET}"
@@ -183,7 +191,7 @@ function verify_approle_secret() {
     echo "${secret_content}"
 }
 
-# Function to verify the created secret is available
+# Validates the synced demo Secret—the proof that Vault data reached the cluster via ESO.
 function verify_demo_secret() {
     debug "Verifying the created secret is available..."
     local demo_vault_secret="${DEMO_SECRET}"
@@ -216,7 +224,7 @@ function verify_demo_secret() {
     ${extract_content}
 }
 
-# Function to verify Vault objects (policy, secret, and auth method)
+# Cross-checks server-side Vault state (policy, KV path, AppRole) independent of Kubernetes.
 function verify_vault_objects() {
     debug "Verifying Vault objects (policy, secret, and auth method)..."
 

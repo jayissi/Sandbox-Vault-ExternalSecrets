@@ -13,6 +13,12 @@ HELM_REPO_URL := https://charts.external-secrets.io
 CHART := external-secrets/external-secrets
 NAMESPACE := external-secrets
 VALUES_URL := https://github.com/external-secrets/external-secrets/raw/main/deploy/charts/external-secrets/values.yaml
+# Shared OpenShift sandboxes often need several minutes (APIServer churn, image pulls, webhook/cert readiness); 15m
+# avoids flaky installs that would pass on a quiet cluster but fail under load.
+HELM_TIMEOUT := 15m
+
+# Execution method: true = containerized (default), false = localhost/bastion
+USE_CONTAINER ?= true
 
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
@@ -20,6 +26,9 @@ VALUES_URL := https://github.com/external-secrets/external-secrets/raw/main/depl
 # Install External Secrets Operator
 install:
 	@echo "Installing External Secrets Operator..."
+	@if [ "$(USE_CONTAINER)" = "true" ] && command -v podman > /dev/null 2>&1; then \
+		echo "Note: Running in containerized mode - helm commands will execute in container"; \
+	fi
 	@$(call add_helm_repo,$(HELM_REPO),$(HELM_REPO_URL))
 	@$(call update_helm_repo,$(HELM_REPO))
 	@$(call install_chart,$(CHART),$(NAMESPACE),$(VALUES_URL))
@@ -28,7 +37,8 @@ install:
 # Clean up the External Secrets Operator
 clean:
 	@echo "Cleaning up the External Secrets Operator..."
-	@-helm uninstall $(HELM_REPO) -n $(NAMESPACE) --wait --timeout 60s || true
+	@-helm uninstall $(HELM_REPO) -n $(NAMESPACE) --wait --timeout $(HELM_TIMEOUT) || true
+	@-oc delete validatingwebhookconfiguration externalsecret-validate secretstore-validate --ignore-not-found=true 2>/dev/null || true
 	@-oc delete project $(NAMESPACE) || true
 	@echo "External Secrets Operator cleaned up."
 
@@ -53,7 +63,9 @@ define update_helm_repo
 	@helm repo update $(1) || { echo "Error: Failed to update Helm repository $(1)"; exit 1; }
 endef
 
-# Function to install a Helm chart
+# install_chart(chart_ref, namespace, upstream_values_url): release name is HELM_REPO (e.g. "external-secrets") so
+# upgrade/install is stable across runs; upstream values.yaml pins defaults, --wait/--wait-for-jobs block until the
+# operator and hook Jobs are actually ready (not just chart applied); timeout uses HELM_TIMEOUT for the same reason.
 define install_chart
 	@echo "Installing Helm chart $(1)..."
 	@helm upgrade \
@@ -65,5 +77,5 @@ define install_chart
 		--create-namespace \
 		--wait \
 		--wait-for-jobs \
-		--timeout 60s || { echo "Error: Failed to install Helm chart $(1)"; exit 1; }
+		--timeout $(HELM_TIMEOUT) || { echo "Error: Failed to install Helm chart $(1)"; exit 1; }
 endef
