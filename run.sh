@@ -12,6 +12,23 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT}"
 
 CTR="${CONTAINER_ENGINE:-podman}"
+
+# Validate container engine is available; prefer podman, fall back to docker if needed
+if ! command -v "${CTR}" >/dev/null 2>&1; then
+	if [[ "${CTR}" == "podman" ]] && command -v docker >/dev/null 2>&1; then
+		echo "Warning: podman not found, falling back to docker." >&2
+		CTR="docker"
+	elif [[ "${CTR}" == "docker" ]] && command -v podman >/dev/null 2>&1; then
+		echo "Warning: docker not found, falling back to podman." >&2
+		CTR="podman"
+	else
+		echo "Error: Neither podman (recommended) nor docker is installed." >&2
+		echo "Install podman: https://podman.io/getting-started/installation" >&2
+		echo "Or install docker and set CONTAINER_ENGINE=docker" >&2
+		exit 1
+	fi
+fi
+
 KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/config}"
 # Lab clusters often use certs oc does not trust by default; insecure mode avoids login failures
 # there. Set to "false" when the API presents a proper trust chain (production).
@@ -83,6 +100,7 @@ RUN_OPTS=(
 	-e OCP_MINOR_TAG="${OCP_MINOR}"
 	-e CONTAINER_IMAGE_REF="${IMAGE}"
 	-e OC_INSECURE_TLS
+	-e VAULT_AUTO_UNSEAL="${VAULT_AUTO_UNSEAL:-false}"
 	-v "${ROOT}:/work:z"
 	-w /work
 )

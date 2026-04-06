@@ -20,6 +20,10 @@ VERSION := 0.32.0
 # Execution method: true = containerized (default), false = localhost/bastion
 USE_CONTAINER ?= true
 
+# Auto-unseal: false = disabled (default), true = enable auto-unseal sidecar
+# When enabled, adds a sidecar container that automatically unseals Vault pods on restart
+VAULT_AUTO_UNSEAL ?= false
+
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
 
@@ -140,6 +144,13 @@ create-configmap:
 		--from-file=init-install-v2.sh=./init-install-v2.sh \
 		-n $(VAULT_NAMESPACE) \
 		--dry-run=client -o yaml | oc apply -f - || { echo "Warning: Failed to create ConfigMap"; }
+	@if [ "$(VAULT_AUTO_UNSEAL)" = "true" ]; then \
+		echo "Creating ConfigMap for auto-unseal script..."; \
+		oc create configmap vault-auto-unseal-script \
+			--from-file=vault-auto-unseal.sh=./vault-auto-unseal.sh \
+			-n $(VAULT_NAMESPACE) \
+			--dry-run=client -o yaml | oc apply -f - || { echo "Warning: Failed to create auto-unseal ConfigMap"; }; \
+	fi
 
 # Note: Vault initialization can run either:
 # - Containerized (default): Uses OpenShift Job (vault-init-job.yaml) which runs in-cluster
@@ -164,6 +175,10 @@ help:
 	@echo "Execution Method:"
 	@echo "  USE_CONTAINER=true  (default) - Run in podman container"
 	@echo "  USE_CONTAINER=false           - Run on localhost/bastion"
+	@echo ""
+	@echo "Auto-Unseal:"
+	@echo "  VAULT_AUTO_UNSEAL=false (default) - Manual unseal required after pod restart"
+	@echo "  VAULT_AUTO_UNSEAL=true            - Auto-unseal sidecar enabled"
 
 # Function to add a Helm repository
 define add_helm_repo
@@ -186,8 +201,10 @@ endef
 #   --wait / --wait-for-jobs: block until pods (and hook Jobs) are ready so init does not race a half-ready release.
 #   --timeout 60s: fail fast if the chart cannot schedule; shorter than long operator installs by design here.
 #   --version: pin chart when passed (prod) for repeatable upgrades.
+#   VAULT_AUTO_UNSEAL=true: adds values.auto-unseal.yaml for auto-unseal sidecar.
 define install_vault
 	@echo "Installing Vault from chart $(1)..."
+	@if [ "$(VAULT_AUTO_UNSEAL)" = "true" ]; then echo "Auto-unseal sidecar: ENABLED"; else echo "Auto-unseal sidecar: DISABLED"; fi
 	@helm upgrade \
 		vault \
 		$(1) \
@@ -198,6 +215,7 @@ define install_vault
 		-f https://github.com/hashicorp/vault-helm/raw/main/values.yaml \
 		-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 		$(foreach file,$(4),-f $(file)) \
+		$(if $(filter true,$(VAULT_AUTO_UNSEAL)),-f values.auto-unseal.yaml,) \
 		-n $(2) \
 		--create-namespace \
 		--wait \

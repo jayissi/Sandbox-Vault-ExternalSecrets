@@ -156,6 +156,20 @@ The `init-install-v2.sh` script:
 5. Enables audit logging (file + socket)
 6. For prod: joins standby nodes to the Raft cluster before unsealing
 7. Enables the KV-V2 secret engine at `secret/`
+8. Enables Kubernetes authentication and creates a least-privilege `vault-ops` policy/role
+
+### 2a. Auto-Unseal Sidecar (optional)
+
+When `VAULT_AUTO_UNSEAL=true`, an auto-unseal sidecar container is added to each Vault pod. This sidecar:
+- Monitors Vault's seal status at regular intervals
+- Automatically unseals Vault pods when they restart (using keys from `vault-operator-init` secret)
+- Authenticates the Vault CLI using **Kubernetes Auth** (least privilege) with fallback to root token
+
+**Authentication Strategy:**
+1. **Primary:** Kubernetes Auth with `vault-ops` role (limited to `sys/raft`, `sys/health`, `sys/seal-status`)
+2. **Fallback:** Root token (only during initial setup before Kubernetes Auth is configured)
+
+This ensures operational commands like `vault operator raft list-peers` work after pod restarts, while administrative commands like `vault secrets list` are denied (confirming least privilege).
 
 ### 3. Install External Secrets Operator
 
@@ -230,10 +244,12 @@ The `verify-vault-openshift.sh` script validates:
 ├── workflow.sh                      # In-container bootstrap: install tools, validate, run make
 ├── hashicorp-vault-helm/            # Vault Helm chart deployment
 │   ├── Makefile                     # dev/lab/prod targets + init orchestration
-│   ├── init-install-v2.sh           # Vault init, unseal, audit, KV engine setup
+│   ├── init-install-v2.sh           # Vault init, unseal, audit, KV engine, K8s auth setup
 │   ├── values.dev.yaml              # Helm overrides for dev (standalone, dev server mode)
 │   ├── values.lab.yaml              # Helm overrides for lab (standalone, PVC storage)
 │   ├── values.prod.yaml             # Helm overrides for prod (HA Raft, 3 replicas)
+│   ├── values.auto-unseal.yaml      # Helm overrides for auto-unseal sidecar
+│   ├── vault-auto-unseal.sh         # Auto-unseal sidecar script (reference)
 │   ├── run-in-podman.sh             # Run a make target inside an origin-cli container
 │   └── run-init-container.sh        # Run init inside a container (standalone mode)
 ├── external-secrets-helm/           # External Secrets Operator Helm chart deployment
@@ -273,6 +289,7 @@ This removes, in order:
 | `OCP_MINOR_VERSION` | Auto-detected | Override OCP minor version (e.g. `4.18`) |
 | `CONTAINER_ENGINE` | `podman` | Container runtime (`podman` or `docker`) |
 | `OC_INSECURE_TLS` | `true` | Skip TLS verification for `oc login` |
+| `VAULT_AUTO_UNSEAL` | `false` | Enable auto-unseal sidecar; when `true`, Vault pods automatically unseal on restart using keys from `vault-operator-init` secret |
 | `OPENSHIFT_API_URL` | — | API URL when not using host kubeconfig |
 | `CLUSTER_ADMIN_USERNAME` | — | Admin username for `oc login` |
 | `CLUSTER_ADMIN_PASSWORD` | — | Admin password for `oc login` |

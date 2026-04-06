@@ -1,0 +1,177 @@
+---
+# Auto-unseal sidecar configuration
+# This overlay adds a sidecar container that automatically unseals Vault pods
+# when they restart, using unseal keys stored in the vault-operator-init secret.
+#
+# Authentication Strategy (Least Privilege):
+# 1. Primary: Kubernetes Auth with vault-ops role (limited to sys/raft, sys/health)
+# 2. Fallback: Root token (only used during initial setup before K8s auth is configured)
+#
+# Note: The Vault Helm chart already creates a 'home' emptyDir volume mounted
+# at /home/vault in the vault container. The sidecar mounts this same volume
+# to write the .vault-token file that the Vault CLI reads automatically.
+
+server:
+  # Extra sidecar containers (standard Kubernetes container spec)
+  extraContainers:
+    - name: auto-unseal
+      image: registry.access.redhat.com/ubi9/ubi:latest
+      command:
+        - /bin/bash
+        - -c
+        - |
+          set -uo pipefail
+          VAULT_ADDR="${VAULT_ADDR:-http://127.0.0.1:8200}"
+          CHECK_INTERVAL="${CHECK_INTERVAL:-10}"
+          UNSEAL_THRESHOLD="${UNSEAL_THRESHOLD:-3}"
+          UNSEAL_KEYS_FILE="${UNSEAL_KEYS_FILE:-/vault-unseal/unseal_keys_b64}"
+          ROOT_TOKEN_FILE="${ROOT_TOKEN_FILE:-/vault-unseal/root_token}"
+          SHARED_TOKEN_FILE="${SHARED_TOKEN_FILE:-/home/vault/.vault-token}"
+          SA_TOKEN_PATH="/var/run/secrets/kubernetes.io/serviceaccount/token"
+          K8S_AUTH_ROLE="${K8S_AUTH_ROLE:-vault-ops}"
+
+          log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [auto-unseal] $1"; }
+
+          wait_for_vault() {
+              log "Waiting for Vault to become available..."
+              while true; do
+                  if curl -s -o /dev/null -w "%{http_code}" "${VAULT_ADDR}/v1/sys/health" 2>/dev/null | grep -qE "^(200|429|472|473|501|503)$"; then
+                      log "Vault is available"
+                      return 0
+                  fi
+                  sleep 2
+              done
+          }
+
+          login_with_k8s_auth() {
+              if [[ ! -f "$SA_TOKEN_PATH" ]]; then
+                  log "Service account token not found at $SA_TOKEN_PATH"
+                  return 1
+              fi
+              local jwt_token vault_response vault_token
+              jwt_token=$(cat "$SA_TOKEN_PATH")
+              vault_response=$(curl -s -X POST "${VAULT_ADDR}/v1/auth/kubernetes/login" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"role\": \"${K8S_AUTH_ROLE}\", \"jwt\": \"${jwt_token}\"}" 2>/dev/null)
+              vault_token=$(echo "$vault_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('auth',{}).get('client_token',''))" 2>/dev/null)
+              if [[ -n "$vault_token" && "$vault_token" != "None" ]]; then
+                  echo "$vault_token" > "$SHARED_TOKEN_FILE"
+                  chmod 600 "$SHARED_TOKEN_FILE"
+                  log "Kubernetes auth successful (vault-ops role), token written for CLI"
+                  return 0
+              else
+                  local errors
+                  errors=$(echo "$vault_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('errors',[''])[0] if d.get('errors') else '')" 2>/dev/null)
+                  log "Kubernetes auth failed: ${errors:-unknown error}"
+                  return 1
+              fi
+          }
+
+          write_token_for_cli_fallback() {
+              if [[ -f "$ROOT_TOKEN_FILE" ]]; then
+                  cp "$ROOT_TOKEN_FILE" "$SHARED_TOKEN_FILE"
+                  chmod 600 "$SHARED_TOKEN_FILE"
+                  log "FALLBACK: Root token written to $SHARED_TOKEN_FILE for CLI auth"
+              else
+                  log "WARNING: Root token file not found at $ROOT_TOKEN_FILE"
+              fi
+          }
+
+          write_token_for_cli() {
+              if login_with_k8s_auth; then
+                  return 0
+              fi
+              log "Kubernetes auth unavailable, falling back to root token..."
+              write_token_for_cli_fallback
+          }
+
+          check_and_unseal() {
+              local status
+              status=$(curl -s "${VAULT_ADDR}/v1/sys/seal-status" 2>/dev/null)
+              if [[ -z "$status" ]]; then
+                  return 1
+              fi
+              local initialized sealed
+              initialized=$(echo "$status" | python3 -c "import sys,json; print(json.load(sys.stdin).get('initialized', False))" 2>/dev/null || echo "false")
+              sealed=$(echo "$status" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sealed', True))" 2>/dev/null || echo "true")
+              if [[ "$initialized" != "True" ]]; then
+                  return 0
+              fi
+              if [[ "$sealed" != "True" ]]; then
+                  if [[ ! -f "$SHARED_TOKEN_FILE" ]]; then
+                      write_token_for_cli
+                  fi
+                  return 0
+              fi
+              log "Vault is sealed, attempting unseal..."
+              if [[ ! -f "$UNSEAL_KEYS_FILE" ]]; then
+                  log "WARNING: Unseal keys file not found at $UNSEAL_KEYS_FILE"
+                  return 1
+              fi
+              local keys_json key_count=0
+              keys_json=$(cat "$UNSEAL_KEYS_FILE")
+              while IFS= read -r key; do
+                  if [[ -n "$key" ]]; then
+                      curl -s -X PUT "${VAULT_ADDR}/v1/sys/unseal" \
+                          -H "Content-Type: application/json" \
+                          -d "{\"key\": \"$key\"}" >/dev/null 2>&1
+                      key_count=$((key_count + 1))
+                      local check
+                      check=$(curl -s "${VAULT_ADDR}/v1/sys/seal-status" 2>/dev/null)
+                      local still_sealed
+                      still_sealed=$(echo "$check" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sealed', True))" 2>/dev/null || echo "true")
+                      if [[ "$still_sealed" != "True" ]]; then
+                          log "Vault successfully unsealed after $key_count key(s)"
+                          write_token_for_cli
+                          return 0
+                      fi
+                  fi
+              done < <(echo "$keys_json" | python3 -c "import sys,json; [print(k) for k in json.load(sys.stdin)]" 2>/dev/null | head -n "$UNSEAL_THRESHOLD")
+              log "Unseal attempt complete"
+          }
+
+          log "Starting Vault auto-unseal sidecar (least privilege mode)"
+          log "VAULT_ADDR: $VAULT_ADDR"
+          log "CHECK_INTERVAL: ${CHECK_INTERVAL}s"
+          log "K8S_AUTH_ROLE: $K8S_AUTH_ROLE"
+          wait_for_vault
+          write_token_for_cli
+          while true; do
+              check_and_unseal
+              sleep "$CHECK_INTERVAL"
+          done
+      env:
+        - name: VAULT_ADDR
+          value: "http://127.0.0.1:8200"
+        - name: CHECK_INTERVAL
+          value: "10"
+        - name: UNSEAL_THRESHOLD
+          value: "3"
+        - name: UNSEAL_KEYS_FILE
+          value: "/vault-unseal/unseal_keys_b64"
+        - name: ROOT_TOKEN_FILE
+          value: "/vault-unseal/root_token"
+        - name: SHARED_TOKEN_FILE
+          value: "/home/vault/.vault-token"
+        - name: K8S_AUTH_ROLE
+          value: "vault-ops"
+      resources:
+        requests:
+          memory: 64Mi
+          cpu: 10m
+        limits:
+          memory: 128Mi
+          cpu: 100m
+      volumeMounts:
+        - name: unseal-keys
+          mountPath: /vault-unseal
+          readOnly: true
+        - name: home
+          mountPath: /home/vault
+
+  # Additional volumes using standard Kubernetes format (rendered via toYaml)
+  volumes:
+    - name: unseal-keys
+      secret:
+        secretName: vault-operator-init
+        optional: true

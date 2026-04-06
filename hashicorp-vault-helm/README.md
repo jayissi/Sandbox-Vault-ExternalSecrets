@@ -52,15 +52,45 @@ Three-node HA Raft cluster. Same initialization as lab, plus:
 make prod
 ```
 
+### Auto-Unseal Sidecar (Optional)
+
+When `VAULT_AUTO_UNSEAL=true`, a sidecar container is added to each Vault pod that:
+- Monitors Vault's seal status every 10 seconds
+- Automatically unseals Vault when pods restart using keys from `vault-operator-init` secret
+- Authenticates the Vault CLI using Kubernetes Auth (least privilege)
+
+```bash
+VAULT_AUTO_UNSEAL=true make lab
+VAULT_AUTO_UNSEAL=true make prod
+```
+
+**Least Privilege Authentication:**
+
+The sidecar uses a two-tier authentication strategy:
+1. **Primary:** Kubernetes Auth with `vault-ops` role (15-minute TTL)
+2. **Fallback:** Root token (only during initial setup before K8s Auth is configured)
+
+The `vault-ops` policy grants minimal permissions:
+| Path | Capabilities |
+|------|--------------|
+| `sys/storage/raft/configuration` | read |
+| `sys/seal-status` | read |
+| `sys/health` | read, sudo |
+| `sys/auth` | read |
+
+This means operational commands like `vault operator raft list-peers` work, but administrative commands like `vault secrets list` are denied.
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `Makefile` | Orchestrates Helm install, init, and cleanup |
-| `init-install-v2.sh` | Vault initialization, unsealing, audit, and KV engine setup |
+| `init-install-v2.sh` | Vault initialization, unsealing, audit, KV engine, and Kubernetes Auth setup |
 | `values.dev.yaml` | Helm values for dev (dev server mode, edge TLS route) |
 | `values.lab.yaml` | Helm values for lab (standalone, PVC storage, edge TLS route) |
 | `values.prod.yaml` | Helm values for prod (HA Raft, 3 replicas) |
+| `values.auto-unseal.yaml` | Helm values overlay for auto-unseal sidecar (K8s Auth + fallback) |
+| `vault-auto-unseal.sh` | Standalone reference script for auto-unseal sidecar logic |
 | `run-in-podman.sh` | Helper: run a make target inside an origin-cli container |
 | `run-init-container.sh` | Helper: run init inside a container (standalone mode) |
 
@@ -72,3 +102,4 @@ make prod
 | `DEFAULT_STORAGE_CLASS` | `oc get sc` | Cluster's default StorageClass |
 | `VERSION` | Hardcoded (`0.30.1`) | Vault Helm chart version (prod only) |
 | `USE_CONTAINER` | Default `true` | `true` = use OpenShift Job for init, `false` = run locally |
+| `VAULT_AUTO_UNSEAL` | Default `false` | `true` = add auto-unseal sidecar with K8s Auth |

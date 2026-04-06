@@ -259,6 +259,56 @@ done
 log "INFO" "Enabling 'secret/' KV-V2 Secret Engine"
 exec_in_vault_pod 0 vault secrets enable --version=2 --path=secret kv
 check_command_status "vault secrets enable"
+
+# Enable Kubernetes auth for least-privilege CLI access
+log "INFO" "Enabling Kubernetes authentication..."
+exec_in_vault_pod 0 vault auth enable kubernetes 2>/dev/null || {
+  if exec_in_vault_pod 0 vault auth list | grep -q "kubernetes/"; then
+    debug "Kubernetes auth already enabled"
+  else
+    log "ERROR" "Failed to enable Kubernetes auth"
+    exit 1
+  fi
+}
+
+# Configure Kubernetes auth with in-cluster config
+log "INFO" "Configuring Kubernetes auth..."
+exec_in_vault_pod 0 vault write auth/kubernetes/config \
+    kubernetes_host="https://kubernetes.default.svc:443"
+check_command_status "vault write auth/kubernetes/config"
+
+# Create vault-ops policy (least privilege for CLI operations)
+log "INFO" "Creating vault-ops policy (least privilege)..."
+exec_in_vault_pod 0 vault policy write vault-ops - <<'POLICY'
+# Least privilege policy for Vault CLI operations
+# Read Raft cluster configuration
+path "sys/storage/raft/configuration" {
+  capabilities = ["read"]
+}
+# Read seal status (for monitoring)
+path "sys/seal-status" {
+  capabilities = ["read"]
+}
+# Read health status
+path "sys/health" {
+  capabilities = ["read", "sudo"]
+}
+# List auth methods (informational)
+path "sys/auth" {
+  capabilities = ["read"]
+}
+POLICY
+check_command_status "vault policy write vault-ops"
+
+# Create Kubernetes auth role for vault service account
+log "INFO" "Creating vault-ops Kubernetes auth role..."
+exec_in_vault_pod 0 vault write auth/kubernetes/role/vault-ops \
+    bound_service_account_names=vault \
+    bound_service_account_namespaces=vault \
+    policies=vault-ops \
+    ttl=15m
+check_command_status "vault write auth/kubernetes/role/vault-ops"
+
 log "SUCCESS" "Hashicorp Vault Setup Completed"
 }
 

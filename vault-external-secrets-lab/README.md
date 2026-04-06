@@ -28,6 +28,8 @@ The `post-install-v3.sh` script performs these steps in order:
 8. **Wait for CRDs:** Ensures ExternalSecret CRD is registered before applying
 9. **Apply manifests:** `SecretStore` (points to Vault) and `ExternalSecret` (syncs `secret/demo`)
 
+> **Note:** Kubernetes Auth is also configured during Vault initialization (see `hashicorp-vault-helm/`) for the `vault` service account, providing least-privilege CLI access for operational commands.
+
 After completion, ESO automatically syncs the Vault secret into an OpenShift Secret named `demo` in the `demo` namespace.
 
 ## Verification (`make verify`)
