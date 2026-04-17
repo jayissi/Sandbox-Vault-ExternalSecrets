@@ -49,10 +49,8 @@ ifdef WORKFLOW_IN_CONTAINER
 # before calling make; we only see this branch inside origin-cli, not on the host.
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Subdirectory Makefiles also support “run in container”; that path uses podman,
-# which does not exist inside origin-cli. Pin USE_CONTAINER so nested makes run
-# directly in this container.
-override USE_CONTAINER := false
+# WORKFLOW_IN_CONTAINER is already exported by workflow.sh; subdirectory Makefiles
+# use the same ifdef guard to detect they are inside origin-cli.
 
 VAULT_DIR := ./hashicorp-vault-helm
 EXTERNAL_SECRETS_DIR := ./external-secrets-helm
@@ -130,12 +128,12 @@ clean-hv:
 	@-$(call run_make,clean,$(VAULT_DIR),true)
 	@echo "Hashicorp-vault environment cleaned."
 
-# Delegate to component Makefiles. USE_CONTAINER=false avoids re-entering their
-# container logic (would fail: no podman/socket inside origin-cli).
+# Delegate to component Makefiles. WORKFLOW_IN_CONTAINER is inherited from workflow.sh
+# so subdirectory Makefiles know to run real recipes (not re-enter run.sh).
 define run_make
 	@if [ -d "$(2)" ]; then \
-		echo "Running 'make $(1)' in $(2) (localhost)..."; \
-		$(MAKE) $(1) --directory=$(2) USE_CONTAINER=false || { echo "Error: Failed to run 'make $(1)' in $(2)"; exit 1; }; \
+		echo "Running 'make $(1)' in $(2)..."; \
+		$(MAKE) $(1) --directory=$(2) || { echo "Error: Failed to run 'make $(1)' in $(2)"; exit 1; }; \
 	else \
 		echo "Error: Directory $(2) does not exist"; \
 		exit 1; \

@@ -100,6 +100,5 @@ This means operational commands like `vault operator raft list-peers` work, but 
 |----------|--------|-------------|
 | `VAULT_URL` | `oc get ingresses.config` | Dynamically resolved Vault route hostname |
 | `DEFAULT_STORAGE_CLASS` | `oc get sc` | Cluster's default StorageClass |
-| `VERSION` | Hardcoded (`0.30.1`) | Vault Helm chart version (prod only) |
-| `USE_CONTAINER` | Default `true` | `true` = use OpenShift Job for init, `false` = run locally |
+| `VERSION` | Hardcoded (`0.32.0`) | Vault Helm chart version (prod only) |
 | `VAULT_AUTO_UNSEAL` | Default `false` | `true` = add auto-unseal sidecar with K8s Auth |

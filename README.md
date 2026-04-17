@@ -253,13 +253,20 @@ The `verify-vault-openshift.sh` script validates:
 │   ├── run-in-podman.sh             # Run a make target inside an origin-cli container
 │   └── run-init-container.sh        # Run init inside a container (standalone mode)
 ├── external-secrets-helm/           # External Secrets Operator Helm chart deployment
-│   └── Makefile                     # install/clean targets
+│   ├── Makefile                     # install/clean targets
+│   └── README.md
 ├── vault-external-secrets-lab/      # Demo data + verification
 │   ├── Makefile                     # demo/clean/verify targets
 │   ├── post-install-v3.sh           # Vault demo data + AppRole + ESO manifests
 │   ├── verify-vault-openshift.sh    # End-to-end validation script
+│   ├── README.md
 │   └── manifests/                   # OpenShift templates
 │       └── sandbox-vault-external-secrets-template.yaml
+├── vault-odf/                       # ODF (OpenShift Data Foundation) Vault integration notes
+│   ├── ODF-Vault.txt
+│   ├── odf-vault-kube-auth
+│   └── odf-vault-token-auth
+├── images/                          # Screenshots and diagrams
 ├── _archived/                       # Legacy scripts (kept for reference)
 ├── .gitignore
 ├── LICENSE
@@ -285,7 +292,7 @@ This removes, in order:
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
-| `USE_CONTAINER` | `true` | Run sub-component init scripts in a container; set to `false` to run directly on localhost/bastion |
+| `USE_CONTAINER` | `true` | Top-level only: when `true`, `run.sh` launches an origin-cli container for the build; when `false`, targets run directly on the host |
 | `OCP_MINOR_VERSION` | Auto-detected | Override OCP minor version (e.g. `4.18`) |
 | `CONTAINER_ENGINE` | `podman` | Container runtime (`podman` or `docker`) |
 | `OC_INSECURE_TLS` | `true` | Skip TLS verification for `oc login` |

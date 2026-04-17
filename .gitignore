@@ -4,3 +4,15 @@
 .*.swo
 *.bak
 *.tmp
+
+# Logs
+*.log
+
+# Kubeconfig copies
+kubeconfig*
+!kubeconfig.example
+
+# Environment files
+.env
+.env.*
+!.env.example

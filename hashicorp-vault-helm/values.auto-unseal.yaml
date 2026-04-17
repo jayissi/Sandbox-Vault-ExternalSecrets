@@ -31,16 +31,22 @@ server:
           K8S_AUTH_ROLE="${K8S_AUTH_ROLE:-vault-ops}"
 
           log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [auto-unseal] $1"; }
+          json_get() { python3 -c "import sys,json; print(json.load(sys.stdin).get('$1','${2:-}'))" 2>/dev/null; }
 
           wait_for_vault() {
-              log "Waiting for Vault to become available..."
-              while true; do
+              local max_wait="${VAULT_READY_TIMEOUT:-300}"
+              local elapsed=0
+              log "Waiting for Vault to become available (timeout: ${max_wait}s)..."
+              while [[ $elapsed -lt $max_wait ]]; do
                   if curl -s -o /dev/null -w "%{http_code}" "${VAULT_ADDR}/v1/sys/health" 2>/dev/null | grep -qE "^(200|429|472|473|501|503)$"; then
                       log "Vault is available"
                       return 0
                   fi
                   sleep 2
+                  elapsed=$((elapsed + 2))
               done
+              log "ERROR: Vault did not become available within ${max_wait}s"
+              return 1
           }
 
           login_with_k8s_auth() {
@@ -92,8 +98,8 @@ server:
                   return 1
               fi
               local initialized sealed
-              initialized=$(echo "$status" | python3 -c "import sys,json; print(json.load(sys.stdin).get('initialized', False))" 2>/dev/null || echo "false")
-              sealed=$(echo "$status" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sealed', True))" 2>/dev/null || echo "true")
+              initialized=$(echo "$status" | json_get initialized False || echo "false")
+              sealed=$(echo "$status" | json_get sealed True || echo "true")
               if [[ "$initialized" != "True" ]]; then
                   return 0
               fi
@@ -119,7 +125,7 @@ server:
                       local check
                       check=$(curl -s "${VAULT_ADDR}/v1/sys/seal-status" 2>/dev/null)
                       local still_sealed
-                      still_sealed=$(echo "$check" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sealed', True))" 2>/dev/null || echo "true")
+                      still_sealed=$(echo "$check" | json_get sealed True || echo "true")
                       if [[ "$still_sealed" != "True" ]]; then
                           log "Vault successfully unsealed after $key_count key(s)"
                           write_token_for_cli

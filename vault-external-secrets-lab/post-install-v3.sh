@@ -7,11 +7,8 @@ set -euo pipefail
 # OpenShift Secret, then apply SecretStore and ExternalSecret manifests.
 #
 
-# Enable debug mode (true/false)
-DEBUG=false
-
-# Enable trace mode (true/false)
-TRACE=false
+DEBUG="${DEBUG:-false}"
+TRACE="${TRACE:-false}"
 
 # Enable trace mode only if both DEBUG and TRACE are true
 if ${DEBUG} && ${TRACE}; then
@@ -83,13 +80,15 @@ function trap_handler() {
 # Set trap for error handling
 trap 'trap_handler ${LINENO} "$BASH_COMMAND"' ERR
 
-# Run Vault CLI inside the Vault pod — avoids requiring a local vault binary and uses the same
-# environment (VAULT_* / TLS) the server expects.
+readonly VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
+readonly DEMO_NAMESPACE="${DEMO_NAMESPACE:-demo}"
+readonly ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"
+
 function vault_exec() {
     local cmd="${1}"
     debug "Executing Vault command: ${cmd}"
 
-    "${OC}" exec -n vault -i pods/vault-0 -- sh -c "${cmd}"
+    "${OC}" exec -n "${VAULT_NAMESPACE}" -i pods/vault-0 -- sh -c "${cmd}"
 }
 
 # Function to check if a command exists
@@ -188,17 +187,17 @@ function apply_manifests() {
 
     log "INFO" "Applying SecretStore and ExternalSecret manifests..."
     # Check if SecretStore/ExternalSecret already exist (informational)
-    if "${OC}" get secretstore -n demo 2>/dev/null | grep -q vault; then
+    if "${OC}" get secretstore -n "${DEMO_NAMESPACE}" 2>/dev/null | grep -q vault; then
         log "INFO" "SecretStore already exists, will be updated..."
     fi
-    if "${OC}" get externalsecret -n demo 2>/dev/null | grep -q demo; then
+    if "${OC}" get externalsecret -n "${DEMO_NAMESPACE}" 2>/dev/null | grep -q demo; then
         log "INFO" "ExternalSecret already exists, will be updated..."
     fi
     # Use oc apply which is idempotent
     # Explicitly target the demo namespace (oc create namespace does not switch context)
     if "${OC}" process -f manifests/sandbox-vault-external-secrets-template.yaml \
         -p APPROLE_SECRET="${approle_secret}" \
-        -p VAULT_URL="${vault_url}" -o yaml | "${OC}" apply -n demo --wait=true -f -; then
+        -p VAULT_URL="${vault_url}" -o yaml | "${OC}" apply -n "${DEMO_NAMESPACE}" --wait=true -f -; then
         debug "Manifests applied successfully."
     else
         log "ERROR" "Failed to apply manifests."
@@ -215,7 +214,7 @@ function main() {
 
     # Define variables
     readonly APPROLE_SECRET="approle-vault"
-    readonly VAULT_URL=$("${OC}" get routes.route.openshift.io vault -n vault -o jsonpath='{.spec.host}')
+    readonly VAULT_URL=$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath='{.spec.host}')
 
     # Debugging information
     debug "JQ path: ${JQ}"
@@ -278,8 +277,8 @@ EOF
     debug "Secret ID Payload: ${SECRET_ID_PAYLOAD}"
 
     # Create 'demo' namespace and secret
-    create_namespace "demo"
-    create_secret "${APPROLE_SECRET}" "demo" "${ROLE_ID_PAYLOAD}" "${SECRET_ID_PAYLOAD}"
+    create_namespace "${DEMO_NAMESPACE}"
+    create_secret "${APPROLE_SECRET}" "${DEMO_NAMESPACE}" "${ROLE_ID_PAYLOAD}" "${SECRET_ID_PAYLOAD}"
 
     # Wait for ESO CRDs to be fully available before applying manifests.
     # The ESO operator may still be registering its CRDs after helm install --wait.

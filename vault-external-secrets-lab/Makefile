@@ -13,9 +13,6 @@ MAKEFLAGS += --no-print-directory
 # Variables
 PROJECT_NAME := demo
 
-# Execution method: true = containerized (default), false = localhost/bastion
-USE_CONTAINER ?= true
-
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
 
@@ -24,9 +21,6 @@ USE_CONTAINER ?= true
 # OpenShift Secret, then applies the SecretStore and ExternalSecret so ESO can sync Vault into the cluster.
 demo:
 	@echo "Setting up the demo..."
-	@if [ "$(USE_CONTAINER)" = "true" ] && command -v podman > /dev/null 2>&1; then \
-		echo "Note: Running in containerized mode"; \
-	fi
 	@if ! bash ./post-install-v3.sh; then \
 		echo "Error: Failed to run post-install-v3.sh"; \
 		exit 1; \

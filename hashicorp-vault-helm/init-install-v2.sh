@@ -6,11 +6,8 @@ set -euo pipefail
 # stdin to `vault operator unseal` (not argv); root token is passed through the pod env for login/lookup so it does not
 # appear in process listings like a bare CLI argument would.
 
-# Enable debug mode (true/false)
-DEBUG=false
-
-# Enable trace mode (true/false)
-TRACE=false
+DEBUG="${DEBUG:-false}"
+TRACE="${TRACE:-false}"
 
 # Enable trace mode only if both DEBUG and TRACE are true
 if [[ "${DEBUG}" == true && "${TRACE}" == true ]]; then
@@ -22,7 +19,19 @@ readonly OC="$(command -v oc)"
 readonly VAULT_INIT_SECRET_NAME="vault-operator-init"
 readonly UNSEAL_SHARES=5
 readonly UNSEAL_THRESHOLD=3
-readonly VAULT_NAMESPACE="vault"
+readonly VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
+
+function cleanup_trap() {
+    local exit_code=$?
+    local line_number="${1:-unknown}"
+    local command="${2:-unknown}"
+    if [[ ${exit_code} -ne 0 ]]; then
+        log "ERROR" "Script failed at line ${line_number}: '${command}' (exit code ${exit_code})"
+        log "ERROR" "Recovery: check 'oc get secret ${VAULT_INIT_SECRET_NAME} -n ${VAULT_NAMESPACE}' for init state."
+        log "ERROR" "If Vault is partially initialized, delete the secret and re-run, or manually unseal remaining pods."
+    fi
+}
+trap 'cleanup_trap ${LINENO} "$BASH_COMMAND"' ERR EXIT
 
 # Logging colors
 readonly RED='\033[0;31m'
@@ -76,20 +85,7 @@ function trace() {
 function exec_in_vault_pod() {
   local pod_index="${1}"
   shift
-  local command="${@}"
-  "${OC}" exec -n "${VAULT_NAMESPACE}" -i pods/"vault-${pod_index}" -- ${command}
-}
-
-# Reusable function to check command status
-function check_command_status() {
-  local exit_code=${?}
-  local command="${1}"
-  if [ ${exit_code} -ne 0 ]; then
-    log "ERROR" "Command failed: ${command}"
-    exit 1
-  else
-    debug "Command succeeded: ${command}"
-  fi
+  "${OC}" exec -n "${VAULT_NAMESPACE}" -i pods/"vault-${pod_index}" -- "$@"
 }
 
 # Reusable function to verify dependencies status
@@ -136,20 +132,19 @@ function initialize_vault() {
           exit 1
       fi
       
-      debug "Adding secret argument: --from-literal=${key}=${value}"
+      debug "Adding secret argument: --from-literal=${key}=<REDACTED>"
       SECRET_ARGS+=( "--from-literal=${key}=${value}" )
   done < <(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r 'keys[]')
 
-  # Debug: Show final arguments
-  debug "Final SECRET_ARGS: ${SECRET_ARGS[@]}"
+  debug "Final SECRET_ARGS: [${#SECRET_ARGS[@]} arguments, values redacted]"
 
-  # Create the secret - SECRET_ARGS must remain available after the loop
-  debug "Executing: oc create -n ${VAULT_NAMESPACE} secret generic ${VAULT_INIT_SECRET_NAME} ${SECRET_ARGS[@]}"
-  oc create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}"
+  debug "Executing: oc create -n ${VAULT_NAMESPACE} secret generic ${VAULT_INIT_SECRET_NAME} [${#SECRET_ARGS[@]} --from-literal args]"
+  oc create -n "${VAULT_NAMESPACE}" secret generic "${VAULT_INIT_SECRET_NAME}" "${SECRET_ARGS[@]}" || {
+    log "ERROR" "Failed to create secret '${VAULT_INIT_SECRET_NAME}'"
+    exit 1
+  }
 
-  check_command_status "oc create secret"
-
-  local VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n vault -o jsonpath --template='{.spec.host}{"\n"}')"
+  local VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath --template='{.spec.host}{"\n"}')"
   echo "Vault URL: ${VAULT_URL}"
   echo "Vault initialization complete. Root token stored in secret '${VAULT_INIT_SECRET_NAME}' (namespace: ${VAULT_NAMESPACE})."
 }
@@ -162,8 +157,10 @@ function unseal_vault() {
   # Use a random subset of unseal keys (threshold count) to unseal the pod.
   for key_index in $(shuf -i 0-$((UNSEAL_SHARES - 1)) -n ${UNSEAL_THRESHOLD}); do
     log "INFO" "Unsealing pod 'vault-${pod_index}' using unseal key index: ${key_index}"
-    exec_in_vault_pod "${pod_index}" vault operator unseal "${unseal_keys[${key_index}]}"
-    check_command_status "vault operator unseal"
+    exec_in_vault_pod "${pod_index}" vault operator unseal "${unseal_keys[${key_index}]}" || {
+      log "ERROR" "Failed to unseal vault-${pod_index} with key index ${key_index}"
+      exit 1
+    }
   done
 }
 
@@ -208,22 +205,26 @@ function enable_audit_logging() {
   log "INFO" "Enabling Audit Logging on 'vault-${pod_index}'"
   exec_in_vault_pod "${pod_index}" vault audit enable -path="vault-${pod_index}_file_audit_" file \
     format=json \
-    file_path="/vault/audit/vault-${pod_index}_audit.log"
-  
-  check_command_status "vault audit enable file"
+    file_path="/vault/audit/vault-${pod_index}_audit.log" || {
+    log "ERROR" "Failed to enable file audit on vault-${pod_index}"
+    exit 1
+  }
 
   exec_in_vault_pod "${pod_index}" vault audit enable -path="vault-${pod_index}_socket_audit_" socket \
     address="127.0.0.1:8200" \
-    socket_type=tcp
-
-  check_command_status "vault audit enable socket"
+    socket_type=tcp || {
+    log "ERROR" "Failed to enable socket audit on vault-${pod_index}"
+    exit 1
+  }
 }
 
 function join_cluster() {
   local pod_index=${1}
   log "INFO" "Joining server 'vault-${pod_index}' to the cluster"
-  exec_in_vault_pod "${pod_index}" vault operator raft join http://vault-0.vault-internal:8200
-  check_command_status "vault operator raft join"
+  exec_in_vault_pod "${pod_index}" vault operator raft join http://vault-0.vault-internal:8200 || {
+    log "ERROR" "Failed to join vault-${pod_index} to Raft cluster"
+    exit 1
+  }
 }
 
 # Main function
@@ -257,8 +258,10 @@ for pod_index in "${pod_indices[@]}"; do
 done
 
 log "INFO" "Enabling 'secret/' KV-V2 Secret Engine"
-exec_in_vault_pod 0 vault secrets enable --version=2 --path=secret kv
-check_command_status "vault secrets enable"
+exec_in_vault_pod 0 vault secrets enable --version=2 --path=secret kv || {
+  log "ERROR" "Failed to enable KV-V2 secret engine"
+  exit 1
+}
 
 # Enable Kubernetes auth for least-privilege CLI access
 log "INFO" "Enabling Kubernetes authentication..."
@@ -274,8 +277,10 @@ exec_in_vault_pod 0 vault auth enable kubernetes 2>/dev/null || {
 # Configure Kubernetes auth with in-cluster config
 log "INFO" "Configuring Kubernetes auth..."
 exec_in_vault_pod 0 vault write auth/kubernetes/config \
-    kubernetes_host="https://kubernetes.default.svc:443"
-check_command_status "vault write auth/kubernetes/config"
+    kubernetes_host="https://kubernetes.default.svc:443" || {
+  log "ERROR" "Failed to configure Kubernetes auth"
+  exit 1
+}
 
 # Create vault-ops policy (least privilege for CLI operations)
 log "INFO" "Creating vault-ops policy (least privilege)..."
@@ -298,7 +303,7 @@ path "sys/auth" {
   capabilities = ["read"]
 }
 POLICY
-check_command_status "vault policy write vault-ops"
+[[ ${PIPESTATUS[0]} -eq 0 ]] || { log "ERROR" "Failed to create vault-ops policy"; exit 1; }
 
 # Create Kubernetes auth role for vault service account
 log "INFO" "Creating vault-ops Kubernetes auth role..."
@@ -306,8 +311,10 @@ exec_in_vault_pod 0 vault write auth/kubernetes/role/vault-ops \
     bound_service_account_names=vault \
     bound_service_account_namespaces=vault \
     policies=vault-ops \
-    ttl=15m
-check_command_status "vault write auth/kubernetes/role/vault-ops"
+    ttl=15m || {
+  log "ERROR" "Failed to create vault-ops Kubernetes auth role"
+  exit 1
+}
 
 log "SUCCESS" "Hashicorp Vault Setup Completed"
 }

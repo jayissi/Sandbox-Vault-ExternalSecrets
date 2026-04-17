@@ -17,18 +17,12 @@ VALUES_URL := https://github.com/external-secrets/external-secrets/raw/main/depl
 # avoids flaky installs that would pass on a quiet cluster but fail under load.
 HELM_TIMEOUT := 15m
 
-# Execution method: true = containerized (default), false = localhost/bastion
-USE_CONTAINER ?= true
-
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
 
 # Install External Secrets Operator
 install:
 	@echo "Installing External Secrets Operator..."
-	@if [ "$(USE_CONTAINER)" = "true" ] && command -v podman > /dev/null 2>&1; then \
-		echo "Note: Running in containerized mode - helm commands will execute in container"; \
-	fi
 	@$(call add_helm_repo,$(HELM_REPO),$(HELM_REPO_URL))
 	@$(call update_helm_repo,$(HELM_REPO))
 	@$(call install_chart,$(CHART),$(NAMESPACE),$(VALUES_URL))
