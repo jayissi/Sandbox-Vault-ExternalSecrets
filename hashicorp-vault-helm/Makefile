@@ -24,6 +24,10 @@ MAKEFLAGS += --no-print-directory
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
 
+# Shared variables (used by both host and container targets)
+VAULT_NAMESPACE ?= vault
+VAULT_AUTO_UNSEAL ?= false
+
 # ──────────────────────────────────────────────────────────────────────────────
 ifdef WORKFLOW_IN_CONTAINER
 # Real recipes: tools (helm, jq, make) are available inside the container.
@@ -33,13 +37,10 @@ ifdef WORKFLOW_IN_CONTAINER
 HELM_REPO := hashicorp
 HELM_REPO_URL := https://helm.releases.hashicorp.com
 VAULT_CHART := hashicorp/vault
-VAULT_NAMESPACE := vault
+PROD_REPLICAS := 3
 VAULT_URL := $(shell echo vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath --template='{.spec.domain}'))
 DEFAULT_STORAGE_CLASS := $(shell oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
 VERSION := 0.32.0
-
-# Auto-unseal: false = disabled (default), true = enable auto-unseal sidecar
-VAULT_AUTO_UNSEAL ?= false
 
 dev:
 	@echo "Setting up development environment..."
@@ -67,7 +68,7 @@ prod: create-configmap
 	@$(call update_helm_repo,$(HELM_REPO))
 	@$(call install_vault,$(VAULT_CHART),$(VAULT_NAMESPACE),$(VAULT_URL),values.lab.yaml values.prod.yaml,$(VERSION))
 	@echo "Waiting for Vault pods to start..."
-	@/bin/bash -c 'for i in {1..60}; do running=$$(oc get pods -n $(VAULT_NAMESPACE) -l app.kubernetes.io/name=vault --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l || echo 0); if [ $$running -ge 3 ]; then echo "All 3 Vault pods are running"; exit 0; fi; sleep 1; done; echo "ERROR: Not all Vault pods reached Running state within 60s"; exit 1'
+	@/bin/bash -c 'for i in {1..60}; do running=$$(oc get pods -n $(VAULT_NAMESPACE) -l app.kubernetes.io/name=vault --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l || echo 0); if [ $$running -ge $(PROD_REPLICAS) ]; then echo "All $(PROD_REPLICAS) Vault pods are running"; exit 0; fi; sleep 1; done; echo "ERROR: Not all Vault pods reached Running state within 60s"; exit 1'
 	$(call run_vault_init)
 	@echo "Production environment setup completed."
 
@@ -179,9 +180,6 @@ endif
 # ──────────────────────────────────────────────────────────────────────────────
 # Targets below work on both host and container (only need oc, not helm/jq).
 # ──────────────────────────────────────────────────────────────────────────────
-
-VAULT_NAMESPACE ?= vault
-VAULT_AUTO_UNSEAL ?= false
 
 # Create ConfigMap for scripts
 create-configmap:

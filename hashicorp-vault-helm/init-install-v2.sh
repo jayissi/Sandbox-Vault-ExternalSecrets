@@ -6,13 +6,8 @@ set -euo pipefail
 # stdin to `vault operator unseal` (not argv); root token is passed through the pod env for login/lookup so it does not
 # appear in process listings like a bare CLI argument would.
 
-DEBUG="${DEBUG:-false}"
-TRACE="${TRACE:-false}"
-
-# Enable trace mode only if both DEBUG and TRACE are true
-if [[ "${DEBUG}" == true && "${TRACE}" == true ]]; then
-    set -x
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/logging.sh"
 
 readonly JQ="$(command -v jq)"
 readonly OC="$(command -v oc)"
@@ -23,63 +18,13 @@ readonly VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
 
 function cleanup_trap() {
     local exit_code=$?
-    local line_number="${1:-unknown}"
-    local command="${2:-unknown}"
     if [[ ${exit_code} -ne 0 ]]; then
-        log "ERROR" "Script failed at line ${line_number}: '${command}' (exit code ${exit_code})"
+        log "ERROR" "Script failed (exit code ${exit_code})"
         log "ERROR" "Recovery: check 'oc get secret ${VAULT_INIT_SECRET_NAME} -n ${VAULT_NAMESPACE}' for init state."
         log "ERROR" "If Vault is partially initialized, delete the secret and re-run, or manually unseal remaining pods."
     fi
 }
-trap 'cleanup_trap ${LINENO} "$BASH_COMMAND"' ERR EXIT
-
-# Logging colors
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly ORANGE='\033[38;5;214m'
-readonly BLUE='\033[0;34m'
-readonly WHITE='\033[1;37m'
-readonly RESET='\033[0m'  # Reset color (default)
-
-# Functions
-function log() {
-  local level="${1:-INFO}" # Default to INFO if no level is provided
-  local message="${2}"
-  local message_length=${#message}
-  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-  local border="---------------------------------------------------------------------------------"
-  local border_length=$(( ${#border} - 2 ))
-  local padding_length=$(( (border_length - message_length - 2) / 2 )) # Subtract 2 for the "⎈" symbols
-  local padding=$(printf '%*s' "${padding_length}" "") # Create padding spaces
-  local color=""
-
-  case "${level}" in
-    INFO) color="${WHITE}" ;;
-    DEBUG) color="${YELLOW}" ;;
-    WARNING) color="${ORANGE}" ;;
-    ERROR) color="${RED}" ;;
-    SUCCESS) color="${GREEN}" ;;
-    *) color="${RESET}" ;; # Default color for unknown levels
-  esac
-
-  printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "${BLUE}" "${border}" "${padding}" "${message}" "${padding}" "${border}" "${WHITE}" >&2
-  printf "%b[%s] [%s]%b\n" "${color}" "${timestamp}" "${level}" "${RESET}" >&2
-}
-
-function debug() {
-  if [ "${DEBUG}" == true ]; then
-    log "DEBUG" "${1}" >&2
-  fi
-}
-
-# Trace logging function
-function trace() {
-    local message="${1}"
-    if [[ "${DEBUG}" == true && "${TRACE}" == true ]]; then
-        log "TRACE" "${message}" >&2
-    fi
-}
+trap 'cleanup_trap' EXIT
 
 # Reusable function to execute commands in a Vault pod
 function exec_in_vault_pod() {

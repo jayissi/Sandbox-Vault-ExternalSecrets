@@ -154,7 +154,7 @@ main() {
     log "CHECK_INTERVAL: ${CHECK_INTERVAL}s"
     log "K8S_AUTH_ROLE: $K8S_AUTH_ROLE"
     
-    wait_for_vault
+    wait_for_vault || { log "FATAL: Vault did not become available, exiting."; exit 1; }
     write_token_for_cli
     
     while true; do

@@ -115,17 +115,17 @@ clean: clean-demo clean-eso clean-hv
 
 clean-demo:
 	@echo "Cleaning demo environment..."
-	@-$(call run_make,clean,$(LAB_DIR),true)
+	@-$(call run_make,clean,$(LAB_DIR))
 	@echo "Demo environment cleaned."
 
 clean-eso:
 	@echo "Cleaning external-secrets environment..."
-	@-$(call run_make,clean,$(EXTERNAL_SECRETS_DIR),true)
+	@-$(call run_make,clean,$(EXTERNAL_SECRETS_DIR))
 	@echo "External-secrets environment cleaned."
 
 clean-hv:
 	@echo "Cleaning hashicorp-vault environment..."
-	@-$(call run_make,clean,$(VAULT_DIR),true)
+	@-$(call run_make,clean,$(VAULT_DIR))
 	@echo "Hashicorp-vault environment cleaned."
 
 # Delegate to component Makefiles. WORKFLOW_IN_CONTAINER is inherited from workflow.sh

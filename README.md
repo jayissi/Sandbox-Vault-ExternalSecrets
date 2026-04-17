@@ -166,7 +166,7 @@ When `VAULT_AUTO_UNSEAL=true`, an auto-unseal sidecar container is added to each
 - Authenticates the Vault CLI using **Kubernetes Auth** (least privilege) with fallback to root token
 
 **Authentication Strategy:**
-1. **Primary:** Kubernetes Auth with `vault-ops` role (limited to `sys/raft`, `sys/health`, `sys/seal-status`)
+1. **Primary:** Kubernetes Auth with `vault-ops` role (limited to `sys/storage/raft/configuration`, `sys/seal-status`, `sys/health`, `sys/auth`)
 2. **Fallback:** Root token (only during initial setup before Kubernetes Auth is configured)
 
 This ensures operational commands like `vault operator raft list-peers` work after pod restarts, while administrative commands like `vault secrets list` are denied (confirming least privilege).
@@ -233,6 +233,8 @@ The `verify-vault-openshift.sh` script validates:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+> **Note:** The diagram above reflects the **prod (HA)** topology with 3 Vault pods. In **dev** and **lab** modes, a single `vault-0` instance is deployed instead.
+
 ---
 
 ## Project Structure
@@ -242,6 +244,8 @@ The `verify-vault-openshift.sh` script validates:
 ├── Makefile                          # Main orchestrator (host ↔ container dispatch)
 ├── run.sh                           # Host entrypoint: OCP version detection, container launch
 ├── workflow.sh                      # In-container bootstrap: install tools, validate, run make
+├── lib/                             # Shared shell libraries
+│   └── logging.sh                  # Common log/debug/trace functions (sourced by scripts)
 ├── hashicorp-vault-helm/            # Vault Helm chart deployment
 │   ├── Makefile                     # dev/lab/prod targets + init orchestration
 │   ├── init-install-v2.sh           # Vault init, unseal, audit, KV engine, K8s auth setup
@@ -250,8 +254,8 @@ The `verify-vault-openshift.sh` script validates:
 │   ├── values.prod.yaml             # Helm overrides for prod (HA Raft, 3 replicas)
 │   ├── values.auto-unseal.yaml      # Helm overrides for auto-unseal sidecar
 │   ├── vault-auto-unseal.sh         # Auto-unseal sidecar script (reference)
-│   ├── run-in-podman.sh             # Run a make target inside an origin-cli container
-│   └── run-init-container.sh        # Run init inside a container (standalone mode)
+│   ├── run-in-podman.sh             # Thin wrapper → run-init-container.sh (backward compat)
+│   └── run-init-container.sh        # Run tooling inside an origin-cli container
 ├── external-secrets-helm/           # External Secrets Operator Helm chart deployment
 │   ├── Makefile                     # install/clean targets
 │   └── README.md
@@ -292,7 +296,7 @@ This removes, in order:
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
-| `USE_CONTAINER` | `true` | Top-level only: when `true`, `run.sh` launches an origin-cli container for the build; when `false`, targets run directly on the host |
+| `USE_CONTAINER` | `true` | Handled automatically by the two-phase Makefile pattern; set to `false` to bypass `run.sh` and execute targets directly on the host (requires `make`, `helm`, and `jq` installed locally) |
 | `OCP_MINOR_VERSION` | Auto-detected | Override OCP minor version (e.g. `4.18`) |
 | `CONTAINER_ENGINE` | `podman` | Container runtime (`podman` or `docker`) |
 | `OC_INSECURE_TLS` | `true` | Skip TLS verification for `oc login` |

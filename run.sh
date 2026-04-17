@@ -68,6 +68,7 @@ resolve_ocp_minor() {
 		-e OPENSHIFT_API_URL \
 		-e CLUSTER_ADMIN_USERNAME \
 		-e CLUSTER_ADMIN_PASSWORD \
+		-e OC_INSECURE_TLS \
 		"${BOOTSTRAP_OC_IMAGE}" \
 		bash -c "oc login --insecure-skip-tls-verify=\${OC_INSECURE_TLS} \"\${OPENSHIFT_API_URL}\" -u \"\${CLUSTER_ADMIN_USERNAME}\" -p \"\${CLUSTER_ADMIN_PASSWORD}\" >/dev/null && oc get clusterversion version -o jsonpath='{.status.desired.version}'" \
 		| cut -d. -f1,2

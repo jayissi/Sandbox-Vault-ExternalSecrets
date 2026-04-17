@@ -1,4 +1,4 @@
-RH Docs -> https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/4.18/html/deploying_openshift_data_foundation_using_amazon_web_services/deploy-using-dynamic-storage-devices-aws#enabling-cluster-wide-encryprtion-with-the-kubernetes-authentication-using-kms_cloud-storage
+RH Docs -> https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/4.18/html/deploying_openshift_data_foundation_using_amazon_web_services/deploy-using-dynamic-storage-devices-aws#enabling-cluster-wide-encryption-with-the-kubernetes-authentication-using-kms_cloud-storage
 Pt.1 -> https://developers.redhat.com/articles/2025/06/18/openshift-data-foundation-and-hashicorp-vault-securing-data#deploy_openshift_data_foundation_cluster
 Pt.2 -> https://developers.redhat.com/articles/2025/07/15/enhance-data-security-openshift-data-foundation#steps_to_enable_storageclass_encryption
 

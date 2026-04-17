@@ -7,64 +7,8 @@ set -euo pipefail
 # OpenShift Secret, then apply SecretStore and ExternalSecret manifests.
 #
 
-DEBUG="${DEBUG:-false}"
-TRACE="${TRACE:-false}"
-
-# Enable trace mode only if both DEBUG and TRACE are true
-if ${DEBUG} && ${TRACE}; then
-    set -x
-fi
-
-# Logging colors
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly ORANGE='\033[38;5;214m'
-readonly BLUE='\033[0;34m'
-readonly WHITE='\033[1;37m'
-readonly RESET='\033[0m'  # Reset color (default)
-
-# Functions
-function log() {
-  local level="${1:-INFO}" # Default to INFO if no level is provided
-  local message="${2}"
-  local message_length=${#message}
-  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-  local border="---------------------------------------------------------------------------------"
-  local border_length=$(( ${#border} - 2 ))
-  local padding_length=$(( (border_length - message_length - 2) / 2 )) # Subtract 2 for the "⎈" symbols
-  local padding=$(printf '%*s' "${padding_length}" "") # Create padding spaces
-  local color=""
-
-  case "${level}" in
-    INFO) color="${WHITE}" ;;
-    DEBUG) color="${YELLOW}" ;;
-    WARNING) color="${ORANGE}" ;;
-    ERROR) color="${RED}" ;;
-    SUCCESS) color="${GREEN}" ;;
-    TRACE) color="${BLUE}" ;;
-    *) color="${RESET}" ;; # Default color for unknown levels
-  esac
-
-  printf "%b%s\n⎈ %s%s%s ⎈\n%s%b\n" "${BLUE}" "${border}" "${padding}" "${message}" "${padding}" "${border}" "${WHITE}" >&2
-  printf "%b[%s] [%s]%b\n" "${color}" "${timestamp}" "${level}" "${RESET}" >&2
-}
-
-# Debug logging function
-function debug() {
-    local message="${1}"
-    if ${DEBUG}; then
-        log "DEBUG" "${message}" >&2
-    fi
-}
-
-# Trace logging function
-function trace() {
-    local message="${1}"
-    if ${DEBUG} && ${TRACE}; then
-        log "TRACE" "${message}" >&2
-    fi
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/logging.sh"
 
 # Function to handle errors and exit gracefully
 function trap_handler() {
