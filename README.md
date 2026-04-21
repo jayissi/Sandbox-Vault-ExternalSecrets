@@ -254,7 +254,6 @@ The `verify-vault-openshift.sh` script validates:
 │   ├── values.prod.yaml             # Helm overrides for prod (HA Raft, 3 replicas)
 │   ├── values.auto-unseal.yaml      # Helm overrides for auto-unseal sidecar
 │   ├── vault-auto-unseal.sh         # Auto-unseal sidecar script (reference)
-│   ├── run-in-podman.sh             # Thin wrapper → run-init-container.sh (backward compat)
 │   └── run-init-container.sh        # Run tooling inside an origin-cli container
 ├── external-secrets-helm/           # External Secrets Operator Helm chart deployment
 │   ├── Makefile                     # install/clean targets

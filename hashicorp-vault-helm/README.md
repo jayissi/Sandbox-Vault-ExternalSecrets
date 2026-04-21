@@ -91,8 +91,7 @@ This means operational commands like `vault operator raft list-peers` work, but 
 | `values.prod.yaml` | Helm values for prod (HA Raft, 3 replicas) |
 | `values.auto-unseal.yaml` | Helm values overlay for auto-unseal sidecar (K8s Auth + fallback) |
 | `vault-auto-unseal.sh` | Standalone reference script for auto-unseal sidecar logic |
-| `run-in-podman.sh` | Helper: run a make target inside an origin-cli container |
-| `run-init-container.sh` | Helper: run init inside a container (standalone mode) |
+| `run-init-container.sh` | Run tooling inside an origin-cli container (respects `CONTAINER_ENGINE`) |
 
 ## Key Variables (Makefile)
 
