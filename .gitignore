@@ -16,3 +16,8 @@ kubeconfig*
 .env
 .env.*
 !.env.example
+
+# Linter/Checker
+.checkmake
+.pymarkdown
+.yamllint

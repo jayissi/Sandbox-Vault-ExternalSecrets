@@ -8,7 +8,11 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Phony targets (targets that are not files)
-.PHONY: demo clean verify help
+.PHONY: all test demo clean verify help
+
+all: help
+
+test: verify
 
 # Variables
 PROJECT_NAME := demo

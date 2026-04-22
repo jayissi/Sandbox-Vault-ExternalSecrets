@@ -39,7 +39,11 @@ ifndef OCP_MINOR_VERSION
   endif
 endif
 
-.PHONY: dev lab prod dev-demo lab-demo prod-demo eso demo verify clean clean-demo clean-eso clean-hv help
+.PHONY: all test dev lab prod dev-demo lab-demo prod-demo eso demo verify clean clean-demo clean-eso clean-hv help
+
+all: help
+
+test: verify
 
 .DEFAULT_GOAL := help
 

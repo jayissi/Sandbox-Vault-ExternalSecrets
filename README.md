@@ -8,22 +8,35 @@
 
 ---
 
-Welcome to the **Sandbox Vault External Secrets** project! This project provides an automated deployment and integration of [HashiCorp Vault](https://github.com/hashicorp/vault-helm) and [External Secrets Operator](https://github.com/external-secrets/external-secrets) on OpenShift. It serves as a hands-on platform to explore secure secrets management, whether you're new to Vault or integrating it into existing infrastructure.
+Welcome to the **Sandbox Vault External Secrets** project!
+This project provides an automated deployment and integration of
+[HashiCorp Vault](https://github.com/hashicorp/vault-helm) and
+[External Secrets Operator](https://github.com/external-secrets/external-secrets)
+on OpenShift. It serves as a hands-on platform to explore secure secrets management,
+whether you're new to Vault or integrating it into existing infrastructure.
 
 ---
 
 ## Table of Contents
 
-- [How It Works](#how-it-works)
-- [Requirements](#requirements)
-- [Quick Start](#quick-start)
-- [Available Targets](#available-targets)
-- [Workflow: Start to Finish](#workflow-start-to-finish)
-- [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
-- [Uninstall](#uninstall)
-- [Configuration Reference](#configuration-reference)
-- [License](#license)
+- [Sandbox Vault ExternalSecrets](#sandbox-vault-externalsecrets)
+  - [Table of Contents](#table-of-contents)
+  - [How It Works](#how-it-works)
+  - [Requirements](#requirements)
+  - [Quick Start](#quick-start)
+  - [Available Targets](#available-targets)
+  - [Workflow: Start to Finish](#workflow-start-to-finish)
+    - [1. Deploy Vault](#1-deploy-vault)
+    - [2. Initialize \& Unseal (lab/prod only)](#2-initialize--unseal-labprod-only)
+    - [2a. Auto-Unseal Sidecar (optional)](#2a-auto-unseal-sidecar-optional)
+    - [3. Install External Secrets Operator](#3-install-external-secrets-operator)
+    - [4. Configure Demo Data](#4-configure-demo-data)
+    - [5. Verify](#5-verify)
+  - [Architecture Overview](#architecture-overview)
+  - [Project Structure](#project-structure)
+  - [Uninstall](#uninstall)
+  - [Configuration Reference](#configuration-reference)
+  - [License](#license)
 
 ---
 
@@ -31,7 +44,7 @@ Welcome to the **Sandbox Vault External Secrets** project! This project provides
 
 Every `make` target runs inside a version-matched `quay.io/openshift/origin-cli` container, so the only host dependency is `oc` (logged in) and `podman`. The workflow is:
 
-```
+```text
 Host                            Container (origin-cli)
 ────                            ──────────────────────
 make lab-demo
@@ -45,6 +58,7 @@ make lab-demo
 ```
 
 The Makefile uses `ifdef WORKFLOW_IN_CONTAINER` to split behavior:
+
 - **Host side (default):** thin wrappers that dispatch to `run.sh`
 - **Container side:** real orchestration calling sub-directory Makefiles
 
@@ -52,11 +66,11 @@ The Makefile uses `ifdef WORKFLOW_IN_CONTAINER` to split behavior:
 
 ## Requirements
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| OpenShift cluster | 4.16+ | Target platform |
-| `oc` CLI | Matching cluster | Cluster interactions |
-| `podman` (or Docker) | Any recent | Container execution |
+| Tool                 | Version          | Purpose              |
+| -------------------- | ---------------- | -------------------- |
+| OpenShift cluster    | 4.16+            | Target platform      |
+| `oc` CLI             | Matching cluster | Cluster interactions |
+| `podman` (or Docker) | Any recent       | Container execution  |
 
 > **Note:** `make`, `jq`, and `helm` are installed automatically inside the container — no host installation needed.
 
@@ -93,25 +107,25 @@ make clean
 
 ## Available Targets
 
-```
+```text
 make help
 ```
 
-| Target | Description |
-|--------|-------------|
-| `dev` | Install HashiCorp Vault in dev mode (standalone, no init required) |
-| `lab` | Install HashiCorp Vault in lab mode (single instance, auto-init + unseal) |
-| `prod` | Install HashiCorp Vault in prod mode (3-node HA Raft cluster, auto-init + unseal) |
-| `eso` | Install External Secrets Operator only |
-| `demo` | Configure Vault with demo data + AppRole + ESO manifests (requires Vault) |
-| `verify` | Validate the full chain: Vault → ESO → demo secret |
-| `dev-demo` | Full dev setup: Vault (dev) + ESO + demo + verify |
-| `lab-demo` | Full lab setup: Vault (lab) + ESO + demo + verify |
-| `prod-demo` | Full prod setup: Vault (prod HA) + ESO + demo + verify |
-| `clean` | Remove all environments (demo, external-secrets, vault) |
-| `clean-demo` | Remove demo namespace only |
-| `clean-eso` | Remove External Secrets Operator only |
-| `clean-hv` | Remove HashiCorp Vault only |
+| Target       | Description                                                                       |
+| ------------ | --------------------------------------------------------------------------------- |
+| `dev`        | Install HashiCorp Vault in dev mode (standalone, no init required)                |
+| `lab`        | Install HashiCorp Vault in lab mode (single instance, auto-init + unseal)         |
+| `prod`       | Install HashiCorp Vault in prod mode (3-node HA Raft cluster, auto-init + unseal) |
+| `eso`        | Install External Secrets Operator only                                            |
+| `demo`       | Configure Vault with demo data + AppRole + ESO manifests (requires Vault)         |
+| `verify`     | Validate the full chain: Vault → ESO → demo secret                                |
+| `dev-demo`   | Full dev setup: Vault (dev) + ESO + demo + verify                                 |
+| `lab-demo`   | Full lab setup: Vault (lab) + ESO + demo + verify                                 |
+| `prod-demo`  | Full prod setup: Vault (prod HA) + ESO + demo + verify                            |
+| `clean`      | Remove all environments (demo, external-secrets, vault)                           |
+| `clean-demo` | Remove demo namespace only                                                        |
+| `clean-eso`  | Remove External Secrets Operator only                                             |
+| `clean-hv`   | Remove HashiCorp Vault only                                                       |
 
 **Examples:**
 
@@ -140,15 +154,16 @@ make lab
 
 Vault is installed via its official Helm chart. The environment determines the topology:
 
-| Environment | Instances | Storage | Init Required |
-|-------------|-----------|---------|---------------|
-| `dev` | 1 (dev server mode) | In-memory | No |
-| `lab` | 1 (standalone) | PVC (10Gi data + 10Gi audit) | Yes (auto) |
-| `prod` | 3 (HA Raft) | PVC (10Gi data + 10Gi audit per node) | Yes (auto) |
+| Environment | Instances           | Storage                               | Init Required |
+| ----------- | ------------------- | ------------------------------------- | ------------- |
+| `dev`       | 1 (dev server mode) | In-memory                             | No            |
+| `lab`       | 1 (standalone)      | PVC (10Gi data + 10Gi audit)          | Yes (auto)    |
+| `prod`      | 3 (HA Raft)         | PVC (10Gi data + 10Gi audit per node) | Yes (auto)    |
 
 ### 2. Initialize & Unseal (lab/prod only)
 
 The `init-install-v2.sh` script:
+
 1. Initializes Vault with 5 unseal shares and a threshold of 3
 2. Stores the root token and unseal keys in an OpenShift Secret (`vault-operator-init`)
 3. Unseals each pod with a random subset of 3 keys
@@ -161,11 +176,13 @@ The `init-install-v2.sh` script:
 ### 2a. Auto-Unseal Sidecar (optional)
 
 When `VAULT_AUTO_UNSEAL=true`, an auto-unseal sidecar container is added to each Vault pod. This sidecar:
+
 - Monitors Vault's seal status at regular intervals
 - Automatically unseals Vault pods when they restart (using keys from `vault-operator-init` secret)
 - Authenticates the Vault CLI using **Kubernetes Auth** (least privilege) with fallback to root token
 
 **Authentication Strategy:**
+
 1. **Primary:** Kubernetes Auth with `vault-ops` role (limited to `sys/storage/raft/configuration`, `sys/seal-status`, `sys/health`, `sys/auth`)
 2. **Fallback:** Root token (only during initial setup before Kubernetes Auth is configured)
 
@@ -178,6 +195,7 @@ ESO is installed via Helm chart into the `external-secrets` namespace. The opera
 ### 4. Configure Demo Data
 
 The `post-install-v3.sh` script:
+
 1. Creates a demo secret in Vault: `secret/demo` with `Hello=World!`, `foo=bar`, `Red_Hat=Linux`
 2. Enables AppRole authentication
 3. Creates a Vault policy granting read access to `secret/data/demo`
@@ -189,6 +207,7 @@ The `post-install-v3.sh` script:
 ### 5. Verify
 
 The `verify-vault-openshift.sh` script validates:
+
 - Vault is reachable via its route (HTTPS)
 - Vault policy, secret, and AppRole auth exist
 - ESO pods are running
@@ -199,7 +218,7 @@ The `verify-vault-openshift.sh` script validates:
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                     OpenShift Cluster                           │
 │                                                                 │
@@ -239,7 +258,7 @@ The `verify-vault-openshift.sh` script validates:
 
 ## Project Structure
 
-```
+```text
 .
 ├── Makefile                          # Main orchestrator (host ↔ container dispatch)
 ├── run.sh                           # Host entrypoint: OCP version detection, container launch
@@ -285,6 +304,7 @@ make clean
 ```
 
 This removes, in order:
+
 1. Demo namespace (SecretStore, ExternalSecret, Secrets)
 2. External Secrets Operator (Helm release, namespace, webhooks)
 3. HashiCorp Vault (Helm release, PVCs, RBAC, namespace)
@@ -293,16 +313,16 @@ This removes, in order:
 
 ## Configuration Reference
 
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `USE_CONTAINER` | `true` | Handled automatically by the two-phase Makefile pattern; set to `false` to bypass `run.sh` and execute targets directly on the host (requires `make`, `helm`, and `jq` installed locally) |
-| `OCP_MINOR_VERSION` | Auto-detected | Override OCP minor version (e.g. `4.18`) |
-| `CONTAINER_ENGINE` | `podman` | Container runtime (`podman` or `docker`) |
-| `OC_INSECURE_TLS` | `true` | Skip TLS verification for `oc login` |
-| `VAULT_AUTO_UNSEAL` | `false` | Enable auto-unseal sidecar; when `true`, Vault pods automatically unseal on restart using keys from `vault-operator-init` secret |
-| `OPENSHIFT_API_URL` | — | API URL when not using host kubeconfig |
-| `CLUSTER_ADMIN_USERNAME` | — | Admin username for `oc login` |
-| `CLUSTER_ADMIN_PASSWORD` | — | Admin password for `oc login` |
+| Environment Variable     | Default       | Description                                                                  |
+| ------------------------ | ------------- | ---------------------------------------------------------------------------- |
+| `USE_CONTAINER`          | `true`        | Set to `false` to bypass `run.sh` and run targets directly on the host       |
+| `OCP_MINOR_VERSION`      | Auto-detected | Override OCP minor version (e.g. `4.18`)                                     |
+| `CONTAINER_ENGINE`       | `podman`      | Container runtime (`podman` or `docker`)                                     |
+| `OC_INSECURE_TLS`        | `true`        | Skip TLS verification for `oc login`                                         |
+| `VAULT_AUTO_UNSEAL`      | `false`       | Enable auto-unseal sidecar; pods automatically unseal on restart             |
+| `OPENSHIFT_API_URL`      | —             | API URL when not using host kubeconfig                                       |
+| `CLUSTER_ADMIN_USERNAME` | —             | Admin username for `oc login`                                                |
+| `CLUSTER_ADMIN_PASSWORD` | —             | Admin password for `oc login`                                                |
 
 ---
 

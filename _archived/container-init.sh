@@ -12,7 +12,7 @@ readonly REPO_URL="https://github.com/jayissi/Sandbox-Vault-ExternalSecrets.git"
 readonly HELM_VERSION="v3.19.2"
 readonly HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
 readonly JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-linux-amd64"
-readonly OC_URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-4.18/openshift-client-linux-amd64-rhel8.tar.gz"
+readonly _OC_URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-4.18/openshift-client-linux-amd64-rhel8.tar.gz"
 readonly VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
 
 # Logging functions
@@ -150,7 +150,8 @@ wait_for_vault_pods() {
   
   # Just check if pods exist and are running - init script will handle vault responsiveness
   while [[ ${elapsed} -lt ${max_wait} ]]; do
-    local pod_count=$(oc get pods -n "${namespace}" -l app.kubernetes.io/name=vault --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l || echo "0")
+    local pod_count
+    pod_count=$(oc get pods -n "${namespace}" -l app.kubernetes.io/name=vault --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l || echo "0")
     if [[ "${pod_count}" -gt 0 ]]; then
       log "Vault pods are running (${pod_count} pod(s))"
       # Give pods a moment to fully start
@@ -209,8 +210,10 @@ main() {
       else
         log "Vault is initialized but sealed - attempting to unseal..."
         # Extract unseal keys from secret and unseal
-        local root_token=$(oc get secret vault-operator-init -n "${VAULT_NAMESPACE}" -o jsonpath='{.data.root_token}' | base64 -d)
-        local unseal_keys=$(oc get secret vault-operator-init -n "${VAULT_NAMESPACE}" -o jsonpath='{.data.unseal_keys_b64}' | base64 -d | jq -r '.[]')
+        local _root_token
+        _root_token=$(oc get secret vault-operator-init -n "${VAULT_NAMESPACE}" -o jsonpath='{.data.root_token}' | base64 -d)
+        local _unseal_keys
+        _unseal_keys=$(oc get secret vault-operator-init -n "${VAULT_NAMESPACE}" -o jsonpath='{.data.unseal_keys_b64}' | base64 -d | jq -r '.[]')
         # Unseal logic would go here if needed
         log "WARNING: Vault is sealed but initialization already exists"
       fi
@@ -279,7 +282,8 @@ main() {
     
     if [[ -n "${demo_script}" ]] && [[ -f "${demo_script}" ]]; then
       log "Executing demo setup script: ${demo_script}"
-      local demo_dir=$(dirname "${demo_script}")
+      local demo_dir
+      demo_dir=$(dirname "${demo_script}")
       cd "${demo_dir}" || error "Failed to change to demo directory: ${demo_dir}"
       bash post-install-v3.sh || {
         log "WARNING: Demo setup script failed, but continuing..."

@@ -8,11 +8,11 @@ This directory contains the demo data setup and end-to-end verification for the 
 make help
 ```
 
-| Target | Description |
-|--------|-------------|
-| `demo` | Seed Vault with demo data, create AppRole, apply ESO manifests |
+| Target   | Description                                                    |
+| -------- | -------------------------------------------------------------- |
+| `demo`   | Seed Vault with demo data, create AppRole, apply ESO manifests |
 | `verify` | Validate the full chain: Vault → ESO → synced OpenShift Secret |
-| `clean` | Remove the `demo` namespace and all its resources |
+| `clean`  | Remove the `demo` namespace and all its resources              |
 
 ## Demo Setup (`make demo`)
 
@@ -36,17 +36,17 @@ After completion, ESO automatically syncs the Vault secret into an OpenShift Sec
 
 The `verify-vault-openshift.sh` script checks:
 
-| Check | What It Validates |
-|-------|------------------|
-| Vault URL | Route is reachable (HTTP 200) |
-| Vault policy | `demo` policy exists |
-| Vault secret | `secret/demo` exists with expected data |
-| AppRole auth | `approle` auth method is enabled |
-| ESO pods | External Secrets Operator pods are running |
-| ExternalSecret | CR exists and status is `SecretSynced` |
-| SecretStore | CR exists and status is `Valid` |
-| `approle-vault` | Secret contains role-id and secret-id |
-| `demo` | Secret contains `Hello: World!`, `foo: bar`, `Red_Hat: Linux` |
+| Check            | What It Validates                                             |
+| ---------------- | ------------------------------------------------------------  |
+| Vault URL        | Route is reachable (HTTP 200)                                 |
+| Vault policy     | `demo` policy exists                                          |
+| Vault secret     | `secret/demo` exists with expected data                       |
+| AppRole auth     | `approle` auth method is enabled                              |
+| ESO pods         | External Secrets Operator pods are running                    |
+| ExternalSecret   | CR exists and status is `SecretSynced`                        |
+| SecretStore      | CR exists and status is `Valid`                               |
+| `approle-vault`  | Secret contains role-id and secret-id                         |
+| `demo`           | Secret contains `Hello: World!`, `foo: bar`, `Red_Hat: Linux` |
 
 ## Example: Verify Demo Secret Manually
 
@@ -61,9 +61,9 @@ oc extract secret/demo -n demo --to=-
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `Makefile` | Thin wrappers for demo/clean/verify |
-| `post-install-v3.sh` | Demo data + AppRole + ESO manifest setup |
-| `verify-vault-openshift.sh` | End-to-end validation script |
+| File                                                     | Purpose                                             |
+| -------------------------------------------------------- | --------------------------------------------------- |
+| `Makefile`                                               | Thin wrappers for demo/clean/verify                 |
+| `post-install-v3.sh`                                     | Demo data + AppRole + ESO manifest setup            |
+| `verify-vault-openshift.sh`                              | End-to-end validation script                        |
 | `manifests/sandbox-vault-external-secrets-template.yaml` | OpenShift template for SecretStore + ExternalSecret |

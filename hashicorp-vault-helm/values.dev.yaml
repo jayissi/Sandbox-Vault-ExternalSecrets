@@ -11,7 +11,7 @@ injector:
       cpu: 250m
 
 server:
-# More info on Vault Dev server mode: https://developer.hashicorp.com/vault/docs/concepts/dev-server
+  # More info on Vault Dev server mode: https://developer.hashicorp.com/vault/docs/concepts/dev-server
   dev:
     enabled: true
 
@@ -25,6 +25,6 @@ server:
 
   route:
     enabled: true
-    #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
-    tls: 
+    # host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
+    tls:
       termination: edge

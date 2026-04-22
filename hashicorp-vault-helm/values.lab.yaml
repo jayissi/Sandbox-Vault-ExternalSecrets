@@ -22,17 +22,17 @@ server:
   dataStorage:
     enabled: true
     size: 10Gi
-    #storageClass: $(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
+    # storageClass: $(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
 
   auditStorage:
     enabled: true
     size: 10Gi
-    #storageClass: $(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
+    # storageClass: $(oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
 
   route:
     enabled: true
-    #host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
-    tls: 
+    # host: vault.$(oc get ingresses.config.openshift.io cluster -o jsonpath --template="{.spec.domain}")
+    tls:
       termination: edge
 
   # Lab environment uses standalone mode (1 instance)

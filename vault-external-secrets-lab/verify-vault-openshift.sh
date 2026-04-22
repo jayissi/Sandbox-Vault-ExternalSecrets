@@ -223,11 +223,14 @@ function main() {
     check_command "curl"
 
     # Define variables
-    readonly JQ=$(command -v jq)
-    readonly OC=$(command -v oc)
+    JQ=$(command -v jq)
+    readonly JQ
+    OC=$(command -v oc)
+    readonly OC
     readonly APPROLE_SECRET="approle-vault"
     readonly DEMO_SECRET="demo"
-    readonly VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath='{.spec.host}')"
+    VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath='{.spec.host}')"
+    readonly VAULT_URL
 
     # Debugging information
     debug "JQ path: ${JQ}"

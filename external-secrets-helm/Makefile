@@ -5,7 +5,12 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Phony targets (targets that are not files)
-.PHONY: install clean help
+.PHONY: all test install clean help
+
+all: help
+
+test:
+	@echo "No tests available. Use the top-level 'make verify' target."
 
 # Variables
 HELM_REPO := external-secrets

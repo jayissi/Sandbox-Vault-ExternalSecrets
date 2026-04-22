@@ -9,8 +9,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/logging.sh"
 
-readonly JQ="$(command -v jq)"
-readonly OC="$(command -v oc)"
+JQ="$(command -v jq)"
+readonly JQ
+OC="$(command -v oc)"
+readonly OC
 readonly VAULT_INIT_SECRET_NAME="vault-operator-init"
 readonly UNSEAL_SHARES=5
 readonly UNSEAL_THRESHOLD=3
@@ -54,13 +56,14 @@ function initialize_vault() {
   log "INFO" "Starting Vault Initialization"
   debug "Initializing Vault with ${UNSEAL_SHARES} unseal shares and a threshold of ${UNSEAL_THRESHOLD}"
 
-  readonly VAULT_KEYS_PAYLOAD=$(
+  VAULT_KEYS_PAYLOAD=$(
     exec_in_vault_pod 0 \
       vault operator init \
         -format=json \
         -key-shares "${UNSEAL_SHARES}" \
         -key-threshold "${UNSEAL_THRESHOLD}"
   )
+  readonly VAULT_KEYS_PAYLOAD
 
   local SECRET_ARGS=()
   debug "Building secret arguments from JSON payload"
@@ -89,14 +92,16 @@ function initialize_vault() {
     exit 1
   }
 
-  local VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath --template='{.spec.host}{"\n"}')"
+  local VAULT_URL
+  VAULT_URL="https://$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath --template='{.spec.host}{"\n"}')"
   echo "Vault URL: ${VAULT_URL}"
   echo "Vault initialization complete. Root token stored in secret '${VAULT_INIT_SECRET_NAME}' (namespace: ${VAULT_NAMESPACE})."
 }
 
 function unseal_vault() {
   local pod_index=${1}
-  local unseal_keys=($(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r ".unseal_keys_b64[]"))
+  local unseal_keys
+  mapfile -t unseal_keys < <(echo "${VAULT_KEYS_PAYLOAD}" | "${JQ}" -r ".unseal_keys_b64[]")
   
   debug "Unsealing Vault pod 'vault-${pod_index}'"
   # Use a random subset of unseal keys (threshold count) to unseal the pod.

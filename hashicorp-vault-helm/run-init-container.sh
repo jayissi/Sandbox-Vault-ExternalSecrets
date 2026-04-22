@@ -24,7 +24,8 @@ resolve_origin_cli_image() {
 	exit 1
 }
 
-readonly CONTAINER_IMAGE="$(resolve_origin_cli_image)"
+CONTAINER_IMAGE="$(resolve_origin_cli_image)"
+readonly CONTAINER_IMAGE
 
 CTR="${CONTAINER_ENGINE:-podman}"
 exec "${CTR}" run --rm -it \

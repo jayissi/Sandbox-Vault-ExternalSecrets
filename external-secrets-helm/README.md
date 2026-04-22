@@ -8,10 +8,10 @@ This directory manages the [External Secrets Operator (ESO)](https://external-se
 make help
 ```
 
-| Target | Description |
-|--------|-------------|
-| `install` | Install ESO via Helm into the `external-secrets` namespace |
-| `clean` | Uninstall ESO Helm release, remove webhooks and namespace |
+| Target    | Description                                                    |
+| --------- | -------------------------------------------------------------- |
+| `install` | Install ESO via Helm into the `external-secrets` namespace     |
+| `clean`   | Uninstall ESO Helm release, remove webhooks and namespace      |
 
 ## How It Works
 

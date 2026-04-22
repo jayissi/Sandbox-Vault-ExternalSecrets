@@ -19,7 +19,11 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Phony targets (targets that are not files)
-.PHONY: dev lab prod clean help create-configmap verify-init
+.PHONY: all test dev lab prod clean help create-configmap verify-init
+
+all: help
+
+test: verify-init
 
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help

@@ -43,8 +43,9 @@ function check_command() {
         exit 1
     fi
     debug "Command '${cmd}' is available."
-    local UPPER_CMD=$(echo "${cmd}" | sed 's/.*/\U&/')
-    readonly "${UPPER_CMD}"=$(command -v "${cmd}")
+    local UPPER_CMD
+    UPPER_CMD=$(echo "${cmd}" | sed 's/.*/\U&/')
+    readonly "${UPPER_CMD}"="$(command -v "${cmd}")"
 }
 
 # Function to validate environment variables
@@ -81,12 +82,18 @@ function create_secret() {
 
     # From role-id response: mount_type + data.role_id. From secret-id response: data.secret_id and
     # accessor/TTL/num_uses metadata for auditing and optional ESO tuning.
-    local mount_type=$(echo "${role_id_payload}" | "${JQ}" -r '.mount_type')
-    local role_id=$(echo "${role_id_payload}" | "${JQ}" -r '.data.role_id')
-    local secret_id=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id')
-    local secret_id_accessor=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_accessor')
-    local secret_id_num_uses=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_num_uses')
-    local secret_id_ttl=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_ttl')
+    local mount_type
+    mount_type=$(echo "${role_id_payload}" | "${JQ}" -r '.mount_type')
+    local role_id
+    role_id=$(echo "${role_id_payload}" | "${JQ}" -r '.data.role_id')
+    local secret_id
+    secret_id=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id')
+    local secret_id_accessor
+    secret_id_accessor=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_accessor')
+    local secret_id_num_uses
+    secret_id_num_uses=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_num_uses')
+    local secret_id_ttl
+    secret_id_ttl=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_ttl')
 
     # Debug: Print parsed values
     debug "Parsed Values:"
@@ -158,7 +165,8 @@ function main() {
 
     # Define variables
     readonly APPROLE_SECRET="approle-vault"
-    readonly VAULT_URL=$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath='{.spec.host}')
+    VAULT_URL=$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath='{.spec.host}')
+    readonly VAULT_URL
 
     # Debugging information
     debug "JQ path: ${JQ}"
@@ -205,16 +213,20 @@ EOF
 
     # Retrieve RoleID and SecretID Payload (without jq inside the container)
     debug "Retrieving RoleID and SecretID Payload..."
-    readonly RAW_ROLE_ID_PAYLOAD=$(vault_exec "vault read -format=json auth/approle/role/demo/role-id")
-    readonly RAW_SECRET_ID_PAYLOAD=$(vault_exec "vault write -f -format=json auth/approle/role/demo/secret-id")
+    RAW_ROLE_ID_PAYLOAD=$(vault_exec "vault read -format=json auth/approle/role/demo/role-id")
+    readonly RAW_ROLE_ID_PAYLOAD
+    RAW_SECRET_ID_PAYLOAD=$(vault_exec "vault write -f -format=json auth/approle/role/demo/secret-id")
+    readonly RAW_SECRET_ID_PAYLOAD
 
     # Debug: Print raw JSON payloads
     debug "Raw Role ID Payload: ${RAW_ROLE_ID_PAYLOAD}"
     debug "Raw Secret ID Payload: ${RAW_SECRET_ID_PAYLOAD}"
 
     # Parse JSON payloads using jq (outside the Vault container)
-    readonly ROLE_ID_PAYLOAD=$(echo "${RAW_ROLE_ID_PAYLOAD}" | "${JQ}" -rc '.')
-    readonly SECRET_ID_PAYLOAD=$(echo "${RAW_SECRET_ID_PAYLOAD}" | "${JQ}" -rc '.')
+    ROLE_ID_PAYLOAD=$(echo "${RAW_ROLE_ID_PAYLOAD}" | "${JQ}" -rc '.')
+    readonly ROLE_ID_PAYLOAD
+    SECRET_ID_PAYLOAD=$(echo "${RAW_SECRET_ID_PAYLOAD}" | "${JQ}" -rc '.')
+    readonly SECRET_ID_PAYLOAD
 
     # Debug: Print parsed payloads
     debug "Role ID Payload: ${ROLE_ID_PAYLOAD}"

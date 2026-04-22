@@ -1,4 +1,3 @@
-#
 #!/bin/bash
 #
 
@@ -95,12 +94,12 @@ echo "namespace/demo created"
 # Update secret if ran multiple times
 oc delete -n demo secret ${APPROLE_SECRET} > /dev/null 2>&1
 oc create secret generic ${APPROLE_SECRET} \
-  --from-literal=mount-type=$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.mount_type') \
-  --from-literal=role-id=$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.data.role_id') \
-  --from-literal=secret-id=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id') \
-  --from-literal=secret-id-accessor=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_accessor') \
-  --from-literal=secret-id-num-uses=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_num_uses') \
-  --from-literal=secret-id-ttl=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_ttl') \
+  --from-literal=mount-type="$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.mount_type')" \
+  --from-literal=role-id="$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.data.role_id')" \
+  --from-literal=secret-id="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id')" \
+  --from-literal=secret-id-accessor="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_accessor')" \
+  --from-literal=secret-id-num-uses="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_num_uses')" \
+  --from-literal=secret-id-ttl="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_ttl')" \
   -n demo
 
 
@@ -113,7 +112,7 @@ echo "--------------------------------------------------------------------------
 
 oc process -f manifests/demo-secret-store-template.yaml \
   -p APPROLE_SECRET=${APPROLE_SECRET} \
-  -p VAULT_URL=$(eval ${VAULT_URL}) -o yaml | \
+  -p VAULT_URL="$(eval ${VAULT_URL})" -o yaml | \
   oc apply --wait=true -f -
 
 

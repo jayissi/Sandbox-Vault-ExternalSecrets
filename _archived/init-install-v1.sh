@@ -1,4 +1,3 @@
-#
 #!/bin/bash
 #
 
@@ -83,7 +82,7 @@ do
     echo "⎈       Loop Count ${LOOP_COUNTER}: Unsealing pod 'vault-${i}' using unseal key index: $x      ⎈"
     echo "-------------------------------------------------------------------------------"
 
-    oc exec -n vault -ti vault-${i} -- vault operator unseal $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r ".unseal_keys_b64[$x]")
+    oc exec -n vault -ti vault-${i} -- vault operator unseal "$(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r ".unseal_keys_b64[$x]")"
 
     printf "\n\n\n"
 
@@ -94,7 +93,7 @@ do
       echo "⎈                   First login via Root Token on 'vault-${i}'                  ⎈"
       echo "-------------------------------------------------------------------------------"
 
-      oc exec -n vault -ti vault-${i} -- vault login $(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')
+      oc exec -n vault -ti vault-${i} -- vault login "$(echo ${VAULT_KEYS_PAYLOAD} | ${JQ} -r '.root_token')"
 
       printf "\n\n\n"
       

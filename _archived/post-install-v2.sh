@@ -8,8 +8,9 @@ function log() {
   local border_length=80
   local message="$1"
   local message_length=${#message}
-  local padding_length=$(( (border_length - message_length - 2) / 2 )) # Subtract 2 for the "⎈" symbols
-  local padding=$(printf '%*s' "$padding_length" "") # Create padding spaces
+  local padding_length=$(( (border_length - message_length - 2) / 2 ))
+  local padding
+  padding=$(printf '%*s' "$padding_length" "")
 
   # Center the message with padding
   echo "--------------------------------------------------------------------------------"
@@ -81,8 +82,10 @@ eval ${OC_EXEC_VAULT} vault write auth/approle/role/demo \
 
 # Create Vault RoleID and SecretID
 log "Create Vault RoleID and SecretID"
-readonly ROLE_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault read auth/approle/role/demo/role-id -format=json | ${JQ} -r '.')
-readonly SECRET_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault write -f auth/approle/role/demo/secret-id -format=json | ${JQ} -r '.')
+ROLE_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault read auth/approle/role/demo/role-id -format=json | ${JQ} -r '.')
+readonly ROLE_ID_PAYLOAD
+SECRET_ID_PAYLOAD=$(eval ${OC_EXEC_VAULT} vault write -f auth/approle/role/demo/secret-id -format=json | ${JQ} -r '.')
+readonly SECRET_ID_PAYLOAD
 
 echo ${ROLE_ID_PAYLOAD} ${SECRET_ID_PAYLOAD} | ${JQ} -a
 
@@ -94,19 +97,19 @@ echo "namespace/demo created"
 # Update secret if ran multiple times
 oc delete -n demo secret ${APPROLE_SECRET} > /dev/null 2>&1
 oc create secret generic ${APPROLE_SECRET} \
-  --from-literal=mount-type=$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.mount_type') \
-  --from-literal=role-id=$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.data.role_id') \
-  --from-literal=secret-id=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id') \
-  --from-literal=secret-id-accessor=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_accessor') \
-  --from-literal=secret-id-num-uses=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_num_uses') \
-  --from-literal=secret-id-ttl=$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_ttl') \
+  --from-literal=mount-type="$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.mount_type')" \
+  --from-literal=role-id="$(echo ${ROLE_ID_PAYLOAD} | ${JQ} -r '.data.role_id')" \
+  --from-literal=secret-id="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id')" \
+  --from-literal=secret-id-accessor="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_accessor')" \
+  --from-literal=secret-id-num-uses="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_num_uses')" \
+  --from-literal=secret-id-ttl="$(echo ${SECRET_ID_PAYLOAD} | ${JQ} -r '.data.secret_id_ttl')" \
   -n demo
 
 # Create SecretStore and ExternalSecret with Parameter Values
 log "Create SecretStore and ExternalSecret with Parameter Values"
 oc process -f manifests/sandbox-vault-external-secrets-template.yaml \
   -p APPROLE_SECRET=${APPROLE_SECRET} \
-  -p VAULT_URL=$(eval ${VAULT_URL}) -o yaml | \
+  -p VAULT_URL="$(eval ${VAULT_URL})" -o yaml | \
   oc apply --wait=true -f -
 
 log "Script execution completed."
