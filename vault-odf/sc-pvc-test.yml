@@ -1,0 +1,44 @@
+# This Yaml is to test Storageclass and PVC is working.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-pod
+spec:
+  clusterIP: None
+  selector:
+    app: test-pod
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-pod
+spec:
+  serviceName: test-pod
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-pod
+  template:
+    metadata:
+      labels:
+        app: test-pod
+    spec:
+      containers:
+        - name: test-pod
+          image: registry.redhat.io/ubi9/ubi:latest
+          command: ["tail", "-f", "/dev/null"]
+          volumeMounts:
+            - name: test-pvc
+              mountPath: /test
+  volumeClaimTemplates:
+    - metadata:
+        name: test-pvc
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+#        storageClassName: ${STORAGE_CLASS_NAME}
+        volumeMode: Filesystem
