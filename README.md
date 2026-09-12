@@ -171,7 +171,6 @@ The `init-install-v2.sh` script:
 5. Enables audit logging (file + socket)
 6. For prod: joins standby nodes to the Raft cluster before unsealing
 7. Enables the KV-V2 secret engine at `secret/`
-8. Enables Kubernetes authentication and creates a least-privilege `vault-ops` policy/role
 
 ### 2a. Auto-Unseal Sidecar (optional)
 
@@ -180,6 +179,8 @@ When `VAULT_AUTO_UNSEAL=true`, an auto-unseal sidecar container is added to each
 - Monitors Vault's seal status at regular intervals
 - Automatically unseals Vault pods when they restart (using keys from `vault-operator-init` secret)
 - Authenticates the Vault CLI using **Kubernetes Auth** (least privilege) with fallback to root token
+
+`init-install-v2.sh` also enables Kubernetes authentication and creates a least-privilege `vault-ops` policy/role when `VAULT_AUTO_UNSEAL=true` (the sidecar's sole consumer). When auto-unseal is disabled, Kubernetes auth is not configured.
 
 **Authentication Strategy:**
 
@@ -267,7 +268,7 @@ The `verify-vault-openshift.sh` script validates:
 │   └── logging.sh                  # Common log/debug/trace functions (sourced by scripts)
 ├── hashicorp-vault-helm/            # Vault Helm chart deployment
 │   ├── Makefile                     # dev/lab/prod targets + init orchestration
-│   ├── init-install-v2.sh           # Vault init, unseal, audit, KV engine, K8s auth setup
+│   ├── init-install-v2.sh           # Vault init, unseal, audit, KV engine, optional K8s auth setup
 │   ├── values.dev.yaml              # Helm overrides for dev (standalone, dev server mode)
 │   ├── values.lab.yaml              # Helm overrides for lab (standalone, PVC storage)
 │   ├── values.prod.yaml             # Helm overrides for prod (HA Raft, 3 replicas)

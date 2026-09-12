@@ -213,28 +213,29 @@ exec_in_vault_pod 0 vault secrets enable --version=2 --path=secret kv || {
   exit 1
 }
 
-# Enable Kubernetes auth for least-privilege CLI access
-log "INFO" "Enabling Kubernetes authentication..."
-exec_in_vault_pod 0 vault auth enable kubernetes 2>/dev/null || {
-  if exec_in_vault_pod 0 vault auth list | grep -q "kubernetes/"; then
-    debug "Kubernetes auth already enabled"
-  else
-    log "ERROR" "Failed to enable Kubernetes auth"
+if [[ "${VAULT_AUTO_UNSEAL:-false}" == "true" ]]; then
+  # Enable Kubernetes auth for least-privilege CLI access (auto-unseal sidecar consumer)
+  log "INFO" "Enabling Kubernetes authentication..."
+  exec_in_vault_pod 0 vault auth enable kubernetes 2>/dev/null || {
+    if exec_in_vault_pod 0 vault auth list | grep -q "kubernetes/"; then
+      debug "Kubernetes auth already enabled"
+    else
+      log "ERROR" "Failed to enable Kubernetes auth"
+      exit 1
+    fi
+  }
+
+  # Configure Kubernetes auth with in-cluster config
+  log "INFO" "Configuring Kubernetes auth..."
+  exec_in_vault_pod 0 vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc:443" || {
+    log "ERROR" "Failed to configure Kubernetes auth"
     exit 1
-  fi
-}
+  }
 
-# Configure Kubernetes auth with in-cluster config
-log "INFO" "Configuring Kubernetes auth..."
-exec_in_vault_pod 0 vault write auth/kubernetes/config \
-    kubernetes_host="https://kubernetes.default.svc:443" || {
-  log "ERROR" "Failed to configure Kubernetes auth"
-  exit 1
-}
-
-# Create vault-ops policy (least privilege for CLI operations)
-log "INFO" "Creating vault-ops policy (least privilege)..."
-exec_in_vault_pod 0 vault policy write vault-ops - <<'POLICY'
+  # Create vault-ops policy (least privilege for CLI operations)
+  log "INFO" "Creating vault-ops policy (least privilege)..."
+  exec_in_vault_pod 0 vault policy write vault-ops - <<'POLICY'
 # Least privilege policy for Vault CLI operations
 # Read Raft cluster configuration
 path "sys/storage/raft/configuration" {
@@ -253,18 +254,21 @@ path "sys/auth" {
   capabilities = ["read"]
 }
 POLICY
-[[ ${PIPESTATUS[0]} -eq 0 ]] || { log "ERROR" "Failed to create vault-ops policy"; exit 1; }
+  [[ ${PIPESTATUS[0]} -eq 0 ]] || { log "ERROR" "Failed to create vault-ops policy"; exit 1; }
 
-# Create Kubernetes auth role for vault service account
-log "INFO" "Creating vault-ops Kubernetes auth role..."
-exec_in_vault_pod 0 vault write auth/kubernetes/role/vault-ops \
-    bound_service_account_names=vault \
-    bound_service_account_namespaces=vault \
-    policies=vault-ops \
-    ttl=15m || {
-  log "ERROR" "Failed to create vault-ops Kubernetes auth role"
-  exit 1
-}
+  # Create Kubernetes auth role for vault service account
+  log "INFO" "Creating vault-ops Kubernetes auth role..."
+  exec_in_vault_pod 0 vault write auth/kubernetes/role/vault-ops \
+      bound_service_account_names=vault \
+      bound_service_account_namespaces=vault \
+      policies=vault-ops \
+      ttl=15m || {
+    log "ERROR" "Failed to create vault-ops Kubernetes auth role"
+    exit 1
+  }
+else
+  log "INFO" "Skipping Kubernetes auth setup (VAULT_AUTO_UNSEAL is not enabled)"
+fi
 
 log "SUCCESS" "Hashicorp Vault Setup Completed"
 }

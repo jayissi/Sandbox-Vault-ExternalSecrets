@@ -61,6 +61,8 @@ When `VAULT_AUTO_UNSEAL=true`, a sidecar container is added to each Vault pod th
 - Automatically unseals Vault when pods restart using keys from `vault-operator-init` secret
 - Authenticates the Vault CLI using Kubernetes Auth (least privilege)
 
+`init-install-v2.sh` configures Kubernetes auth, the `vault-ops` policy, and the `vault-ops` role only when `VAULT_AUTO_UNSEAL=true`. When auto-unseal is disabled, those resources are not created.
+
 ```bash
 VAULT_AUTO_UNSEAL=true make lab
 VAULT_AUTO_UNSEAL=true make prod
@@ -89,7 +91,7 @@ This means operational commands like `vault operator raft list-peers` work, but 
 | File                       | Purpose                                                                        |
 | -------------------------- | ------------------------------------------------------------------------------ |
 | `Makefile`                 | Orchestrates Helm install, init, and cleanup                                   |
-| `init-install-v2.sh`       | Vault initialization, unsealing, audit, KV engine, and Kubernetes Auth setup   |
+| `init-install-v2.sh`       | Vault initialization, unsealing, audit, KV engine, and optional Kubernetes Auth setup |
 | `values.dev.yaml`          | Helm values for dev (dev server mode, edge TLS route)                          |
 | `values.lab.yaml`          | Helm values for lab (standalone, PVC storage, edge TLS route)                  |
 | `values.prod.yaml`         | Helm values for prod (HA Raft, 3 replicas)                                     |
@@ -104,4 +106,4 @@ This means operational commands like `vault operator raft list-peers` work, but 
 | `VAULT_URL`             | `oc get ingresses.config` | Dynamically resolved Vault route hostname        |
 | `DEFAULT_STORAGE_CLASS` | `oc get sc`               | Cluster's default StorageClass                   |
 | `VERSION`               | Hardcoded (`0.32.0`)      | Vault Helm chart version (prod only)             |
-| `VAULT_AUTO_UNSEAL`     | Default `false`           | `true` = add auto-unseal sidecar with K8s Auth   |
+| `VAULT_AUTO_UNSEAL`     | Default `false`           | `true` = add auto-unseal sidecar and configure K8s Auth |
