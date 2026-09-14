@@ -58,6 +58,8 @@ function verify_external_secrets() {
     sync_status=$("${OC}" get externalsecret -n "${DEMO_NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].reason}' 2>/dev/null || echo "")
     if [[ "${sync_status}" == "SecretSynced" ]]; then
         log "SUCCESS" "ExternalSecret status is SecretSynced."
+        echo "$ ${OC}" get externalsecret -n "${DEMO_NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].reason}{"\n"}'
+        "${OC}" get externalsecret -n "${DEMO_NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].reason}{"\n"}'
     else
         log "WARNING" "ExternalSecret status is '${sync_status:-unknown}' (expected SecretSynced)."
     fi
@@ -78,6 +80,8 @@ function verify_secret_stores() {
     store_status=$("${OC}" get secretstore -n "${DEMO_NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].reason}' 2>/dev/null || echo "")
     if [[ "${store_status}" == "Valid" ]]; then
         log "SUCCESS" "SecretStore status is Valid."
+        echo "$ ${OC}" get secretstore -n "${DEMO_NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].reason}{"]n"}'
+        "${OC}" get secretstore -n "${DEMO_NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].reason}{"\n"}'
     else
         log "WARNING" "SecretStore status is '${store_status:-unknown}' (expected Valid)."
     fi
