@@ -8,56 +8,14 @@ set -euo pipefail
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../lib/logging.sh"
+# shellcheck source=../lib/vault.sh
+source "${SCRIPT_DIR}/../lib/vault.sh"
 
-# Function to handle errors and exit gracefully
-function trap_handler() {
-    local exit_code=${?}
-    local line_number="${1}"
-    local command="${2}"
-    if [[ ${exit_code} -ne 0 ]]; then
-        log "ERROR" "Script failed at line ${line_number}: '${command}' with exit code ${exit_code}."
-        exit ${exit_code}
-    fi
-}
-
-# Set trap for error handling
-trap 'trap_handler ${LINENO} "$BASH_COMMAND"' ERR
+setup_error_trap
 
 readonly VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
 readonly DEMO_NAMESPACE="${DEMO_NAMESPACE:-demo}"
 readonly ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"
-
-function vault_exec() {
-    local cmd="${1}"
-    debug "Executing Vault command: ${cmd}"
-
-    "${OC}" exec -n "${VAULT_NAMESPACE}" -i pods/vault-0 -- sh -c "${cmd}"
-}
-
-# Function to check if a command exists
-function check_command() {
-    local cmd="${1}"
-    if ! command -v "${cmd}" &> /dev/null; then
-        log "ERROR" "Command '${cmd}' not found. Please install it."
-        exit 1
-    fi
-    debug "Command '${cmd}' is available."
-    local UPPER_CMD
-    UPPER_CMD=$(echo "${cmd}" | sed 's/.*/\U&/')
-    readonly "${UPPER_CMD}"="$(command -v "${cmd}")"
-}
-
-# Function to validate environment variables
-function validate_env() {
-    local required_vars=("VAULT_URL" "APPROLE_SECRET")
-    for var in "${required_vars[@]}"; do
-        if [[ -z "${!var:-}" ]]; then
-            log "ERROR" "Environment variable ${var} is not set."
-            exit 1
-        fi
-    done
-}
 
 # Create the target namespace if it does not already exist.
 # Prefer `oc create namespace` over `oc new-project`: the latter updates kubeconfig, which fails when
@@ -95,7 +53,6 @@ function create_secret() {
     local secret_id_ttl
     secret_id_ttl=$(echo "${secret_id_payload}" | "${JQ}" -r '.data.secret_id_ttl')
 
-    # Debug: Print parsed values
     debug "Parsed Values:"
     debug "Mount Type: ${mount_type}"
     debug "Role ID: ${role_id}"
@@ -109,7 +66,6 @@ function create_secret() {
         exit 1
     fi
 
-    # Create the secret (use apply to handle existing secrets gracefully)
     log "INFO" "Creating secret '${secret_name}' in namespace '${namespace}'..."
     if "${OC}" get secret "${secret_name}" -n "${namespace}" >/dev/null 2>&1; then
         log "INFO" "Secret '${secret_name}' already exists, updating..."
@@ -137,15 +93,12 @@ function apply_manifests() {
     local vault_url="${2}"
 
     log "INFO" "Applying SecretStore and ExternalSecret manifests..."
-    # Check if SecretStore/ExternalSecret already exist (informational)
     if "${OC}" get secretstore -n "${DEMO_NAMESPACE}" 2>/dev/null | grep -q vault; then
         log "INFO" "SecretStore already exists, will be updated..."
     fi
     if "${OC}" get externalsecret -n "${DEMO_NAMESPACE}" 2>/dev/null | grep -q demo; then
         log "INFO" "ExternalSecret already exists, will be updated..."
     fi
-    # Use oc apply which is idempotent
-    # Explicitly target the demo namespace (oc create namespace does not switch context)
     if "${OC}" process -f manifests/sandbox-vault-external-secrets-template.yaml \
         -p APPROLE_SECRET="${approle_secret}" \
         -p VAULT_URL="${vault_url}" -o yaml | "${OC}" apply -n "${DEMO_NAMESPACE}" --wait=true -f -; then
@@ -159,29 +112,23 @@ function apply_manifests() {
 # Flow: prerequisites → KV + AppRole + policy/role → fetch JSON from Vault (CLI in pod) → jq on host
 # → namespace + credential Secret → template apply for ESO CRs.
 function main() {
-    # Ensure required commands are installed
     check_command "jq"
     check_command "oc"
 
-    # Define variables
     readonly APPROLE_SECRET="approle-vault"
     VAULT_URL=$("${OC}" get routes.route.openshift.io vault -n "${VAULT_NAMESPACE}" -o jsonpath='{.spec.host}')
     readonly VAULT_URL
 
-    # Debugging information
     debug "JQ path: ${JQ}"
     debug "OC path: ${OC}"
     debug "APPROLE_SECRET: ${APPROLE_SECRET}"
     debug "VAULT_URL: ${VAULT_URL}"
 
-    # Validate environment variables
-    validate_env
+    validate_env VAULT_URL APPROLE_SECRET
 
-    # Create 'secret/demo' secret
     log "INFO" "Creating 'secret/demo' secret..."
     vault_exec "vault kv put secret/demo Hello='World!' foo=bar Red_Hat=Linux"
 
-    # Enable AppRole Auth Method (idempotent - won't fail if already enabled)
     log "INFO" "Enabling AppRole authentication..."
     vault_exec "vault auth enable approle" 2>/dev/null || {
         if vault_exec "vault auth list" | grep -q "approle/"; then
@@ -192,7 +139,6 @@ function main() {
         fi
     }
 
-    # Create Vault Policy
     log "INFO" "Creating Vault Policy..."
     vault_exec "vault policy write demo -" <<EOF
 path "secret/data/demo" {
@@ -200,7 +146,6 @@ path "secret/data/demo" {
 }
 EOF
 
-    # Create Vault Role
     log "INFO" "Creating Vault Role..."
     # token_num_uses=0 allows unlimited token uses so ESO can refresh on its schedule.
     vault_exec "vault write auth/approle/role/demo \
@@ -211,49 +156,35 @@ EOF
         token_ttl=7d \
         bind_secret_id=true"
 
-    # Retrieve RoleID and SecretID Payload (without jq inside the container)
     debug "Retrieving RoleID and SecretID Payload..."
     RAW_ROLE_ID_PAYLOAD=$(vault_exec "vault read -format=json auth/approle/role/demo/role-id")
     readonly RAW_ROLE_ID_PAYLOAD
     RAW_SECRET_ID_PAYLOAD=$(vault_exec "vault write -f -format=json auth/approle/role/demo/secret-id")
     readonly RAW_SECRET_ID_PAYLOAD
 
-    # Debug: Print raw JSON payloads
     debug "Raw Role ID Payload: ${RAW_ROLE_ID_PAYLOAD}"
     debug "Raw Secret ID Payload: ${RAW_SECRET_ID_PAYLOAD}"
 
-    # Parse JSON payloads using jq (outside the Vault container)
     ROLE_ID_PAYLOAD=$(echo "${RAW_ROLE_ID_PAYLOAD}" | "${JQ}" -rc '.')
     readonly ROLE_ID_PAYLOAD
     SECRET_ID_PAYLOAD=$(echo "${RAW_SECRET_ID_PAYLOAD}" | "${JQ}" -rc '.')
     readonly SECRET_ID_PAYLOAD
 
-    # Debug: Print parsed payloads
     debug "Role ID Payload: ${ROLE_ID_PAYLOAD}"
     debug "Secret ID Payload: ${SECRET_ID_PAYLOAD}"
 
-    # Create 'demo' namespace and secret
     create_namespace "${DEMO_NAMESPACE}"
     create_secret "${APPROLE_SECRET}" "${DEMO_NAMESPACE}" "${ROLE_ID_PAYLOAD}" "${SECRET_ID_PAYLOAD}"
 
-    # Wait for ESO CRDs to be fully available before applying manifests.
-    # The ESO operator may still be registering its CRDs after helm install --wait.
     log "INFO" "Waiting for ExternalSecret CRD to be available..."
-    local crd_wait=0
-    while ! "${OC}" get crd externalsecrets.external-secrets.io &>/dev/null; do
-        if (( crd_wait >= 120 )); then
-            log "ERROR" "Timeout waiting for ExternalSecret CRD"
-            exit 1
-        fi
-        sleep 3
-        crd_wait=$((crd_wait + 3))
-    done
+    if ! "${OC}" wait --for=condition=Established crd/externalsecrets.external-secrets.io --timeout=120s; then
+        log "ERROR" "Timeout waiting for ExternalSecret CRD"
+        exit 1
+    fi
 
-    # Apply SecretStore and ExternalSecret manifests
     apply_manifests "${APPROLE_SECRET}" "${VAULT_URL}"
 
     log "SUCCESS" "Script execution completed."
 }
 
-# Execute main function
 main

@@ -32,6 +32,9 @@ test: verify-init
 VAULT_NAMESPACE ?= vault
 VAULT_AUTO_UNSEAL ?= false
 
+LIB_MK := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../lib/helm.mk)
+include $(LIB_MK)
+
 # ──────────────────────────────────────────────────────────────────────────────
 ifdef WORKFLOW_IN_CONTAINER
 # Real recipes: tools (helm, jq, make) are available inside the container.
@@ -44,7 +47,7 @@ VAULT_CHART := hashicorp/vault
 PROD_REPLICAS := 3
 VAULT_URL := $(shell echo vault.$$(oc get ingresses.config.openshift.io cluster -o jsonpath --template='{.spec.domain}'))
 DEFAULT_STORAGE_CLASS := $(shell oc get sc -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io\/is-default-class=="true")].metadata.name}')
-VERSION := 0.32.0
+VERSION := 0.34.1
 
 dev:
 	@echo "Setting up development environment..."
@@ -54,8 +57,8 @@ dev:
 	@echo "Development environment setup completed."
 	@echo "Note: Dev environment does not require initialization (standalone mode)"
 
-# Lab/prod need create-configmap first so the auto-unseal sidecar (when enabled) can mount
-# init-install-v2.sh; Helm alone does not load those into the cluster.
+# Lab/prod need create-configmap first so the auto-unseal sidecar (when enabled) can
+# mount vault-auto-unseal.sh; Helm alone does not load that script into the cluster.
 lab: create-configmap
 	@echo "Setting up lab environment..."
 	@$(call add_helm_repo,$(HELM_REPO),$(HELM_REPO_URL))
@@ -82,18 +85,6 @@ clean:
 	@-oc delete pvc --all -n $(VAULT_NAMESPACE) || true
 	@-oc delete project $(VAULT_NAMESPACE) || true
 	@echo "Vault environment cleaned."
-
-# Function to add a Helm repository
-define add_helm_repo
-	@echo "Adding Helm repository $(1)..."
-	@helm repo add $(1) $(2) || { echo "Error: Failed to add Helm repository $(1)"; exit 1; }
-endef
-
-# Function to update a Helm repository
-define update_helm_repo
-	@echo "Updating Helm repository $(1)..."
-	@helm repo update $(1) || { echo "Error: Failed to update Helm repository $(1)"; exit 1; }
-endef
 
 # install_vault(chart, namespace, route_host, value_files..., optional chart version):
 #   --install: idempotent install or upgrade.

@@ -13,7 +13,8 @@ if [[ "${CONTAINER_IMAGE_REF}" == *:latest ]] || [[ "${OCP_MINOR_TAG}" == *lates
 	exit 1
 fi
 
-# origin-cli is minimal; recipes expect make, jq, and helm on PATH.
+# Safety net: the tools image from Containerfile already includes make, jq, and helm.
+# These installs only run if a caller launched origin-cli without that layer.
 if ! command -v make >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
 	echo "Installing make and jq..."
 	dnf install -y -q make jq

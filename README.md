@@ -42,14 +42,14 @@ whether you're new to Vault or integrating it into existing infrastructure.
 
 ## How It Works
 
-Every `make` target runs inside a version-matched `quay.io/openshift/origin-cli` container, so the only host dependency is `oc` (logged in) and `podman`. The workflow is:
+Every `make` target runs inside a version-matched tools image built from `quay.io/openshift/origin-cli` plus `make`, `jq`, and `helm`. The only host dependencies are `oc` (logged in) and `podman`. The workflow is:
 
 ```text
-Host                            Container (origin-cli)
-────                            ──────────────────────
+Host                            Container (sandbox-vault-tools:<OCP minor>)
+────                            ──────────────────────────────────────────
 make lab-demo
-  └─ run.sh                     ← discovers OCP minor, launches container
-       └─ workflow.sh           ← installs make/jq/helm, validates versions
+  └─ run.sh                     ← discovers OCP minor, builds tools image if needed, launches container
+       └─ workflow.sh           ← validates versions (make/jq/helm already in the image)
             └─ make lab-demo    ← re-enters Makefile with WORKFLOW_IN_CONTAINER=1
                  ├─ make lab      (hashicorp-vault-helm/)
                  ├─ make install  (external-secrets-helm/)
@@ -72,7 +72,7 @@ The Makefile uses `ifdef WORKFLOW_IN_CONTAINER` to split behavior:
 | `oc` CLI             | Matching cluster | Cluster interactions |
 | `podman` (or Docker) | Any recent       | Container execution  |
 
-> **Note:** `make`, `jq`, and `helm` are installed automatically inside the container — no host installation needed.
+> **Note:** `make`, `jq`, and `helm` are installed in a local tools image (`sandbox-vault-tools:<OCP minor>`) that `run.sh` builds from `Containerfile` on first use — no host installation needed.
 
 ---
 
@@ -262,18 +262,22 @@ The `verify-vault-openshift.sh` script validates:
 ```text
 .
 ├── Makefile                          # Main orchestrator (host ↔ container dispatch)
-├── run.sh                           # Host entrypoint: OCP version detection, container launch
-├── workflow.sh                      # In-container bootstrap: install tools, validate, run make
+├── run.sh                           # Host entrypoint: OCP version detection, tools image build, container launch
+├── workflow.sh                      # In-container bootstrap: validate versions, run make
+├── Containerfile                    # Layers make/jq/helm onto origin-cli (built by run.sh)
 ├── lib/                             # Shared shell libraries
-│   └── logging.sh                  # Common log/debug/trace functions (sourced by scripts)
+│   ├── logging.sh                  # Common log/debug/trace functions
+│   ├── common.sh                   # check_command, validate_env, error trap
+│   ├── vault.sh                    # vault_exec / vault_exec_pod helpers
+│   └── helm.mk                     # Shared Helm repo Makefile macros
 ├── hashicorp-vault-helm/            # Vault Helm chart deployment
 │   ├── Makefile                     # dev/lab/prod targets + init orchestration
 │   ├── init-install-v2.sh           # Vault init, unseal, audit, KV engine, optional K8s auth setup
 │   ├── values.dev.yaml              # Helm overrides for dev (standalone, dev server mode)
 │   ├── values.lab.yaml              # Helm overrides for lab (standalone, PVC storage)
 │   ├── values.prod.yaml             # Helm overrides for prod (HA Raft, 3 replicas)
-│   ├── values.auto-unseal.yaml      # Helm overrides for auto-unseal sidecar
-│   ├── vault-auto-unseal.sh         # Auto-unseal sidecar script (reference)
+│   ├── values.auto-unseal.yaml      # Helm overlay: sidecar mounts vault-auto-unseal.sh
+│   ├── vault-auto-unseal.sh         # Auto-unseal sidecar script (mounted via ConfigMap)
 │   └── run-init-container.sh        # Run tooling inside an origin-cli container
 ├── external-secrets-helm/           # External Secrets Operator Helm chart deployment
 │   ├── Makefile                     # install/clean targets

@@ -25,6 +25,9 @@ HELM_TIMEOUT := 15m
 # Default target (run when no target is specified)
 .DEFAULT_GOAL := help
 
+LIB_MK := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../lib/helm.mk)
+include $(LIB_MK)
+
 # Install External Secrets Operator
 install:
 	@echo "Installing External Secrets Operator..."
@@ -49,18 +52,6 @@ help:
 	@echo "  install  Install the External Secrets Operator"
 	@echo "  clean    Clean up the External Secrets Operator"
 	@echo "  help     Display this help message"
-
-# Function to add a Helm repository
-define add_helm_repo
-	@echo "Adding Helm repository $(1)..."
-	@helm repo add $(1) $(2) || { echo "Error: Failed to add Helm repository $(1)"; exit 1; }
-endef
-
-# Function to update a Helm repository
-define update_helm_repo
-	@echo "Updating Helm repository $(1)..."
-	@helm repo update $(1) || { echo "Error: Failed to update Helm repository $(1)"; exit 1; }
-endef
 
 # install_chart(chart_ref, namespace, upstream_values_url): release name is HELM_REPO (e.g. "external-secrets") so
 # upgrade/install is stable across runs; upstream values.yaml pins defaults, --wait/--wait-for-jobs block until the

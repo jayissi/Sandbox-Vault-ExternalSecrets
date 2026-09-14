@@ -60,6 +60,7 @@ When `VAULT_AUTO_UNSEAL=true`, a sidecar container is added to each Vault pod th
 - Monitors Vault's seal status every 10 seconds
 - Automatically unseals Vault when pods restart using keys from `vault-operator-init` secret
 - Authenticates the Vault CLI using Kubernetes Auth (least privilege)
+- Runs `vault-auto-unseal.sh` from ConfigMap `vault-auto-unseal-script` (created by `make create-configmap`)
 
 `init-install-v2.sh` configures Kubernetes auth, the `vault-ops` policy, and the `vault-ops` role only when `VAULT_AUTO_UNSEAL=true`. When auto-unseal is disabled, those resources are not created.
 
@@ -95,8 +96,8 @@ This means operational commands like `vault operator raft list-peers` work, but 
 | `values.dev.yaml`          | Helm values for dev (dev server mode, edge TLS route)                          |
 | `values.lab.yaml`          | Helm values for lab (standalone, PVC storage, edge TLS route)                  |
 | `values.prod.yaml`         | Helm values for prod (HA Raft, 3 replicas)                                     |
-| `values.auto-unseal.yaml`  | Helm values overlay for auto-unseal sidecar (K8s Auth + fallback)              |
-| `vault-auto-unseal.sh`     | Standalone reference script for auto-unseal sidecar logic                      |
+| `values.auto-unseal.yaml`  | Helm overlay: sidecar mounts `vault-auto-unseal.sh` from ConfigMap          |
+| `vault-auto-unseal.sh`     | Auto-unseal sidecar script (source of truth; mounted via ConfigMap)        |
 | `run-init-container.sh`    | Run tooling inside an origin-cli container (respects `CONTAINER_ENGINE`)       |
 
 ## Key Variables (Makefile)

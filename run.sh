@@ -94,12 +94,22 @@ else
 	fi
 fi
 
+# Layer make/jq/helm onto origin-cli once per minor so workflow.sh does not dnf-install every run.
+TOOLS_IMAGE="sandbox-vault-tools:${OCP_MINOR}"
+if "${CTR}" image exists "${TOOLS_IMAGE}" 2>/dev/null; then
+	echo "Tools image ${TOOLS_IMAGE} already present locally; skipping build."
+else
+	echo "Building tools image ${TOOLS_IMAGE}..."
+	"${CTR}" build --build-arg OCP_MINOR="${OCP_MINOR}" \
+		-t "${TOOLS_IMAGE}" -f "${ROOT}/Containerfile" "${ROOT}"
+fi
+
 # Env and mounts for workflow.sh: target make goal, pinned minor/image for validation, TLS flag,
 # repo at /work with :z so rootless Podman SELinux can read the tree.
 RUN_OPTS=(
 	-e WORKFLOW_TARGET
 	-e OCP_MINOR_TAG="${OCP_MINOR}"
-	-e CONTAINER_IMAGE_REF="${IMAGE}"
+	-e CONTAINER_IMAGE_REF="${TOOLS_IMAGE}"
 	-e OC_INSECURE_TLS
 	-e VAULT_AUTO_UNSEAL="${VAULT_AUTO_UNSEAL:-false}"
 	-v "${ROOT}:/work:z"
@@ -132,7 +142,7 @@ fi
 # --rm drops the throwaway container after workflow.sh; same shell keeps the temp kubeconfig until then.
 "${CTR}" run --rm \
 	"${RUN_OPTS[@]}" \
-	"${IMAGE}" \
+	"${TOOLS_IMAGE}" \
 	bash /work/workflow.sh
 ret=$?
 cleanup

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Shared logging functions sourced by init-install-v2.sh, post-install-v3.sh,
-# and verify-vault-openshift.sh.  Expects DEBUG and TRACE to be set by the caller
-# (defaults provided below).
+# Shared logging functions. Sourced via lib/common.sh (callers source common.sh or vault.sh).
+# Expects DEBUG and TRACE to be set by the caller (defaults provided below).
 
 DEBUG="${DEBUG:-false}"
 TRACE="${TRACE:-false}"

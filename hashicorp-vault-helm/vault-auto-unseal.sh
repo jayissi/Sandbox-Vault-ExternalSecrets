@@ -7,9 +7,10 @@
 # 1. Primary: Kubernetes Auth with vault-ops role (limited to sys/raft, sys/health)
 # 2. Fallback: Root token (only used during initial setup before K8s auth is configured)
 #
-# Note: This script is provided as a reference. The actual sidecar uses an inline version
-# in values.auto-unseal.yaml. The sidecar mounts the Vault Helm chart's existing 'home'
-# emptyDir volume at /home/vault, sharing it with the Vault container.
+# This script is the sidecar entrypoint. values.auto-unseal.yaml mounts it from ConfigMap
+# vault-auto-unseal-script at /scripts/vault-auto-unseal.sh. The sidecar also mounts the
+# Vault Helm chart's existing 'home' emptyDir at /home/vault, sharing .vault-token with
+# the Vault container.
 set -uo pipefail
 
 VAULT_ADDR="${VAULT_ADDR:-http://127.0.0.1:8200}"
