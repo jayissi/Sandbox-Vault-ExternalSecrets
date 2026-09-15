@@ -231,6 +231,7 @@ help:
 	@echo "  CONTAINER_ENGINE=docker make lab-demo        # Use Docker instead of Podman"
 	@echo "  OC_INSECURE_TLS=false make lab-demo          # Enforce TLS verification for oc login"
 	@echo "  VAULT_AUTO_UNSEAL=true make lab-demo         # Enable Vault auto-unseal sidecar"
+	@echo "  Edit lib/helm.mk NODE_SELECTOR/TOLERATIONS   # Pin Vault + ESO pods to labeled nodes"
 	@echo "  OPENSHIFT_API_URL=https://api.cluster.example.com:6443 \\"
 	@echo "    CLUSTER_ADMIN_USERNAME=admin \\"
 	@echo "    CLUSTER_ADMIN_PASSWORD=secret \\"

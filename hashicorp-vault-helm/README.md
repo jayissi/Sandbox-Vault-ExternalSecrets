@@ -108,3 +108,5 @@ This means operational commands like `vault operator raft list-peers` work, but 
 | `DEFAULT_STORAGE_CLASS` | `oc get sc`               | Cluster's default StorageClass                   |
 | `VERSION`               | Hardcoded (`0.32.0`)      | Vault Helm chart version (prod only)             |
 | `VAULT_AUTO_UNSEAL`     | Default `false`           | `true` = add auto-unseal sidecar and configure K8s Auth |
+| `NODE_SELECTOR`         | — (edit `lib/helm.mk`)    | JSON nodeSelector for server + injector pods             |
+| `TOLERATIONS`           | — (edit `lib/helm.mk`)    | JSON tolerations for server + injector pods              |

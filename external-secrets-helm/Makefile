@@ -56,13 +56,18 @@ help:
 # install_chart(chart_ref, namespace, upstream_values_url): release name is HELM_REPO (e.g. "external-secrets") so
 # upgrade/install is stable across runs; upstream values.yaml pins defaults, --wait/--wait-for-jobs block until the
 # operator and hook Jobs are actually ready (not just chart applied); timeout uses HELM_TIMEOUT for the same reason.
+# NODE_SELECTOR / TOLERATIONS (JSON): optional scheduling for all ESO pods via global.*.
 define install_chart
 	@echo "Installing Helm chart $(1)..."
+	@if [ -n "$(NODE_SELECTOR)" ]; then echo "Node selector: $(NODE_SELECTOR)"; fi
+	@if [ -n "$(TOLERATIONS)" ]; then echo "Tolerations: $(TOLERATIONS)"; fi
 	@helm upgrade \
 		$(HELM_REPO) \
 		$(1) \
 		--install \
 		-f $(3) \
+		$(if $(NODE_SELECTOR),--set-json 'global.nodeSelector=$(NODE_SELECTOR)',) \
+		$(if $(TOLERATIONS),--set-json 'global.tolerations=$(TOLERATIONS)',) \
 		-n $(2) \
 		--create-namespace \
 		--wait \

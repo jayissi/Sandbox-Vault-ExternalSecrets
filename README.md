@@ -325,6 +325,8 @@ This removes, in order:
 | `CONTAINER_ENGINE`       | `podman`      | Container runtime (`podman` or `docker`)                                     |
 | `OC_INSECURE_TLS`        | `true`        | Skip TLS verification for `oc login`                                         |
 | `VAULT_AUTO_UNSEAL`      | `false`       | Enable auto-unseal sidecar; pods automatically unseal on restart             |
+| `NODE_SELECTOR`          | —             | JSON nodeSelector for Vault + ESO pods (edit in `lib/helm.mk`)               |
+| `TOLERATIONS`            | —             | JSON tolerations for Vault + ESO pods (edit in `lib/helm.mk`)                |
 | `OPENSHIFT_API_URL`      | —             | API URL when not using host kubeconfig                                       |
 | `CLUSTER_ADMIN_USERNAME` | —             | Admin username for `oc login`                                                |
 | `CLUSTER_ADMIN_PASSWORD` | —             | Admin password for `oc login`                                                |

@@ -1,4 +1,13 @@
-# Shared Helm repository helpers. Component Makefiles include this file.
+# Shared Helm repository helpers and scheduling variables.
+# Component Makefiles include this file.
+
+# Optional JSON scheduling applied to all Helm installs.
+# Edit these values to pin pods to labeled/tainted nodes.
+# Example:
+#   NODE_SELECTOR := {"node-role.kubernetes.io/infra":""}
+#   TOLERATIONS   := [{"key":"node-role.kubernetes.io/infra","operator":"Exists","effect":"NoSchedule"}]
+NODE_SELECTOR ?=
+TOLERATIONS ?=
 
 define add_helm_repo
 	@echo "Adding Helm repository $(1)..."

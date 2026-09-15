@@ -96,9 +96,12 @@ clean:
 #   --timeout 60s: fail fast if the chart cannot schedule; shorter than long operator installs by design here.
 #   --version: pin chart when passed (prod) for repeatable upgrades.
 #   VAULT_AUTO_UNSEAL=true: adds values.auto-unseal.yaml for auto-unseal sidecar.
+#   NODE_SELECTOR / TOLERATIONS (JSON): optional scheduling for server + injector pods.
 define install_vault
 	@echo "Installing Vault from chart $(1)..."
 	@if [ "$(VAULT_AUTO_UNSEAL)" = "true" ]; then echo "Auto-unseal sidecar: ENABLED"; else echo "Auto-unseal sidecar: DISABLED"; fi
+	@if [ -n "$(NODE_SELECTOR)" ]; then echo "Node selector: $(NODE_SELECTOR)"; fi
+	@if [ -n "$(TOLERATIONS)" ]; then echo "Tolerations: $(TOLERATIONS)"; fi
 	@helm upgrade \
 		vault \
 		$(1) \
@@ -110,6 +113,8 @@ define install_vault
 		-f https://github.com/hashicorp/vault-helm/raw/main/values.openshift.yaml \
 		$(foreach file,$(4),-f $(file)) \
 		$(if $(filter true,$(VAULT_AUTO_UNSEAL)),-f values.auto-unseal.yaml,) \
+		$(if $(NODE_SELECTOR),--set-json 'server.nodeSelector=$(NODE_SELECTOR)' --set-json 'injector.nodeSelector=$(NODE_SELECTOR)',) \
+		$(if $(TOLERATIONS),--set-json 'server.tolerations=$(TOLERATIONS)' --set-json 'injector.tolerations=$(TOLERATIONS)',) \
 		-n $(2) \
 		--create-namespace \
 		--wait \
