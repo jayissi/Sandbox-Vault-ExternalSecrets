@@ -1,0 +1,148 @@
+# =============================================================================
+# REFERENCE ONLY — NetworkPolicy Egress Tightening for External Secrets Operator
+# =============================================================================
+#
+# This file is NOT used by the automation. It is provided as a reference for
+# administrators who want to restrict egress traffic from the External Secrets
+# core controller to specific destinations instead of the permissive allow-all
+# rule (egress: [{}]) used in the default ExternalSecretsConfig.
+#
+# The OLM-installed ESO deploys deny-all NetworkPolicies by default. The
+# ExternalSecretsConfig CR must define explicit egress rules so the core
+# controller can reach external secret providers (Vault, cloud APIs, etc.).
+#
+# HOW TO USE:
+#   1. Review and customize the CIDR ranges and ports below for your environment.
+#   2. Replace the networkPolicies section in manifests/externalsecretsconfig.yaml
+#      with the tightened rules from this file.
+#   3. Apply with: oc apply -f manifests/externalsecretsconfig.yaml
+#
+# IMPORTANT: If no egress rules are defined, ESO cannot fetch secrets from any
+# external provider. The operator reconciles NetworkPolicies from the
+# ExternalSecretsConfig CR — direct edits to NetworkPolicy resources are
+# overwritten.
+# =============================================================================
+
+---
+# Example: Tightened ExternalSecretsConfig with per-service egress rules.
+#
+# This configuration replaces the permissive allow-all egress with specific
+# rules for each service that needs to communicate with ESO.
+#
+# Adjust the CIDR ranges and ports to match your environment.
+apiVersion: operator.openshift.io/v1alpha1
+kind: ExternalSecretsConfig
+metadata:
+  name: cluster
+  labels:
+    app: external-secrets-operator
+spec:
+  controllerConfig:
+    networkPolicies:
+      # ── Vault egress ─────────────────────────────────────────────────────
+      # Allow the core controller to reach HashiCorp Vault.
+      # Replace the CIDR with your Vault service ClusterIP or pod CIDR.
+      #
+      # To find your Vault service ClusterIP:
+      #   oc get svc vault -n vault -o jsonpath='{.spec.clusterIP}'
+      #
+      # For cluster-internal Vault (svc.cluster.local):
+      - componentName: ExternalSecretsCoreController
+        name: allow-vault-egress
+        egress:
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: vault
+            ports:
+              - protocol: TCP
+                port: 8200
+              - protocol: TCP
+                port: 8201
+
+      # ── DNS egress ───────────────────────────────────────────────────────
+      # Required for name resolution (kube-dns / CoreDNS).
+      # Without this, the controller cannot resolve service hostnames.
+      - componentName: ExternalSecretsCoreController
+        name: allow-dns-egress
+        egress:
+          - ports:
+              - protocol: UDP
+                port: 53
+              - protocol: TCP
+                port: 53
+
+      # ── Kubernetes API server ────────────────────────────────────────────
+      # Required for the controller to watch/update Secrets and CRs.
+      # The operator adds API server egress automatically, but if you need
+      # explicit control:
+      #
+      # - componentName: ExternalSecretsCoreController
+      #   name: allow-apiserver-egress
+      #   egress:
+      #     - to:
+      #         - ipBlock:
+      #             cidr: <API_SERVER_CIDR>/32
+      #       ports:
+      #         - protocol: TCP
+      #           port: 6443
+
+      # ── Ansible Automation Platform (AAP) ────────────────────────────────
+      # If AAP needs to trigger ESO or if ESO fetches secrets for AAP jobs,
+      # allow egress to the AAP controller service.
+      #
+      # To find your AAP controller service:
+      #   oc get svc -n aap -l app.kubernetes.io/name=automation-controller
+      #
+      # - componentName: ExternalSecretsCoreController
+      #   name: allow-aap-egress
+      #   egress:
+      #     - to:
+      #         - namespaceSelector:
+      #             matchLabels:
+      #               kubernetes.io/metadata.name: aap
+      #       ports:
+      #         - protocol: TCP
+      #           port: 443
+
+      # ── ArgoCD ───────────────────────────────────────────────────────────
+      # If ESO needs to reach the ArgoCD server (e.g., for webhook-triggered
+      # sync or if ArgoCD manages ESO resources).
+      #
+      # To find your ArgoCD service:
+      #   oc get svc -n openshift-gitops -l app.kubernetes.io/name=argocd-server
+      #
+      # - componentName: ExternalSecretsCoreController
+      #   name: allow-argocd-egress
+      #   egress:
+      #     - to:
+      #         - namespaceSelector:
+      #             matchLabels:
+      #               kubernetes.io/metadata.name: openshift-gitops
+      #       ports:
+      #         - protocol: TCP
+      #           port: 443
+
+      # ── External cloud providers (AWS, GCP, Azure) ──────────────────────
+      # If ESO fetches secrets from cloud provider APIs, allow egress to
+      # the internet or specific cloud endpoint CIDRs.
+      #
+      # WARNING: Allowing 0.0.0.0/0 is equivalent to the permissive rule.
+      # Use cloud provider IP ranges for tighter control:
+      #   AWS: https://ip-ranges.amazonaws.com/ip-ranges.json
+      #   GCP: https://www.gstatic.com/ipranges/cloud.json
+      #   Azure: https://www.microsoft.com/en-us/download/details.aspx?id=56519
+      #
+      # - componentName: ExternalSecretsCoreController
+      #   name: allow-cloud-provider-egress
+      #   egress:
+      #     - to:
+      #         - ipBlock:
+      #             cidr: 0.0.0.0/0
+      #             except:
+      #               - 10.0.0.0/8
+      #               - 172.16.0.0/12
+      #               - 192.168.0.0/16
+      #       ports:
+      #         - protocol: TCP
+      #           port: 443

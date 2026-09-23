@@ -18,6 +18,7 @@ setup_error_trap
 readonly VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault}"
 readonly DEMO_NAMESPACE="${DEMO_NAMESPACE:-demo}"
 readonly ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"
+readonly ESO_OPERATOR_NAMESPACE="${ESO_OPERATOR_NAMESPACE:-external-secrets-operator}"
 
 # Fail fast if the Vault route is down—later checks would be noise without a healthy API.
 function verify_vault() {
@@ -33,14 +34,64 @@ function verify_vault() {
 
 # ESO must be scheduled before any ExternalSecret can sync; this catches a missing install early.
 function verify_external_secrets_operator() {
-    debug "Verifying External Secrets Operator is installed and pods are running..."
-    if ! "${OC}" get pods -n "${ESO_NAMESPACE}" -l app.kubernetes.io/name=external-secrets &> /dev/null; then
-        log "ERROR" "External Secrets Operator is not installed or pods are not running."
+    debug "Verifying External Secrets Operator operand pods are running..."
+    local pod_count
+    pod_count=$("${OC}" get pods -n "${ESO_NAMESPACE}" --no-headers 2>/dev/null | grep -c Running || echo 0)
+    if [[ "${pod_count}" -lt 1 ]]; then
+        log "ERROR" "External Secrets Operator operand pods are not running in ${ESO_NAMESPACE}."
         exit 1
     fi
-    log "SUCCESS" "External Secrets Operator is installed and pods are running."
-    echo "$ ${OC} get pods -n ${ESO_NAMESPACE} -l app.kubernetes.io/name=external-secrets"
-    "${OC}" get pods -n "${ESO_NAMESPACE}" -l app.kubernetes.io/name=external-secrets
+    log "SUCCESS" "External Secrets Operator operand pods are running (${pod_count} pods)."
+    echo "$ ${OC} get pods -n ${ESO_NAMESPACE}"
+    "${OC}" get pods -n "${ESO_NAMESPACE}"
+}
+
+# Validates the OLM-managed operator: Subscription, CSV, ExternalSecretsConfig, and operator pod.
+function verify_olm_operator() {
+    debug "Verifying OLM operator resources..."
+
+    debug "Checking Subscription..."
+    if ! "${OC}" get subscription openshift-external-secrets-operator -n "${ESO_OPERATOR_NAMESPACE}" &> /dev/null; then
+        log "ERROR" "OLM Subscription not found in ${ESO_OPERATOR_NAMESPACE}."
+        exit 1
+    fi
+    log "SUCCESS" "OLM Subscription exists."
+    echo "$ ${OC} get subscription -n ${ESO_OPERATOR_NAMESPACE}"
+    "${OC}" get subscription -n "${ESO_OPERATOR_NAMESPACE}"
+
+    debug "Checking CSV phase..."
+    local csv_phase
+    csv_phase=$("${OC}" get csv -n "${ESO_OPERATOR_NAMESPACE}" \
+        -l operators.coreos.com/openshift-external-secrets-operator.external-secrets-operator \
+        -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "")
+    if [[ "${csv_phase}" == "Succeeded" ]]; then
+        log "SUCCESS" "CSV phase is Succeeded."
+    else
+        log "WARNING" "CSV phase is '${csv_phase:-unknown}' (expected Succeeded)."
+    fi
+    echo "$ ${OC} get csv -n ${ESO_OPERATOR_NAMESPACE}"
+    "${OC}" get csv -n "${ESO_OPERATOR_NAMESPACE}"
+
+    debug "Checking operator pod..."
+    local operator_pod_count
+    operator_pod_count=$("${OC}" get pods -n "${ESO_OPERATOR_NAMESPACE}" --no-headers 2>/dev/null | grep -c Running || echo 0)
+    if [[ "${operator_pod_count}" -lt 1 ]]; then
+        log "ERROR" "Operator pod is not running in ${ESO_OPERATOR_NAMESPACE}."
+        exit 1
+    fi
+    log "SUCCESS" "Operator pod is running in ${ESO_OPERATOR_NAMESPACE}."
+    echo "$ ${OC} get pods -n ${ESO_OPERATOR_NAMESPACE}"
+    "${OC}" get pods -n "${ESO_OPERATOR_NAMESPACE}"
+
+    debug "Checking ExternalSecretsConfig status..."
+    local esc_ready
+    esc_ready=$("${OC}" get externalsecretsconfig cluster \
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+    if [[ "${esc_ready}" == "True" ]]; then
+        log "SUCCESS" "ExternalSecretsConfig status is Ready."
+    else
+        log "WARNING" "ExternalSecretsConfig Ready status is '${esc_ready:-unknown}' (expected True)."
+    fi
 }
 
 # Confirms the ExternalSecret CR exists and its status is SecretSynced.
@@ -188,6 +239,7 @@ function main() {
 
     verify_vault
     verify_vault_objects
+    verify_olm_operator
     verify_external_secrets_operator
     verify_external_secrets
     verify_secret_stores

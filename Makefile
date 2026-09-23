@@ -13,7 +13,7 @@
 #
 #   2) Inside origin-cli (WORKFLOW_IN_CONTAINER=1 from workflow.sh, invoked by run.sh)
 #      The same targets expand to real recipes: $(call run_make,...) into
-#      hashicorp-vault-helm, external-secrets-helm, and vault-external-secrets-lab.
+#      hashicorp-vault-helm, external-secrets-olm, and vault-external-secrets-lab.
 #      Rationale: nested container dispatch is impossible here (no podman in
 #      origin-cli), so sub-makes must run “bare” on the container filesystem.
 #
@@ -39,7 +39,7 @@ ifndef OCP_MINOR_VERSION
   endif
 endif
 
-.PHONY: all test dev lab prod dev-demo lab-demo prod-demo eso demo verify clean clean-demo clean-eso clean-hv help
+.PHONY: all test dev lab prod dev-demo lab-demo prod-demo eso eso-status demo verify clean clean-demo clean-eso clean-hv help
 
 all: help
 
@@ -57,7 +57,7 @@ ifdef WORKFLOW_IN_CONTAINER
 # use the same ifdef guard to detect they are inside origin-cli.
 
 VAULT_DIR := ./hashicorp-vault-helm
-EXTERNAL_SECRETS_DIR := ./external-secrets-helm
+EXTERNAL_SECRETS_DIR := ./external-secrets-olm
 LAB_DIR := ./vault-external-secrets-lab
 
 dev:
@@ -76,7 +76,7 @@ prod:
 	@echo "Production HashiCorp Vault installation completed."
 
 dev-demo:
-	@echo "Setting up development environment (Vault + ESO + demo)..."
+	@echo "Setting up development environment (1 Vault + ESO + demo)..."
 	@$(call run_make,dev,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
@@ -84,7 +84,7 @@ dev-demo:
 	@echo "Development demo environment setup completed."
 
 lab-demo:
-	@echo "Setting up lab environment (Vault + ESO + demo)..."
+	@echo "Setting up lab environment (1 Vault + ESO + demo)..."
 	@$(call run_make,lab,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
@@ -92,7 +92,7 @@ lab-demo:
 	@echo "Lab demo environment setup completed."
 
 prod-demo:
-	@echo "Setting up production environment (Vault + ESO + demo)..."
+	@echo "Setting up production environment (3 Vault + ESO + demo)..."
 	@$(call run_make,prod,$(VAULT_DIR))
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@$(call run_make,demo,$(LAB_DIR))
@@ -103,6 +103,10 @@ eso:
 	@echo "Installing External Secrets Operator only..."
 	@$(call run_make,install,$(EXTERNAL_SECRETS_DIR))
 	@echo "External Secrets Operator installation completed."
+
+eso-status:
+	@echo "Checking External Secrets Operator status..."
+	@$(call run_make,status,$(EXTERNAL_SECRETS_DIR))
 
 demo:
 	@echo "Configuring Vault + ESO w/ demo data..."
@@ -177,6 +181,9 @@ prod-demo:
 eso:
 	@$(call launch_container,eso)
 
+eso-status:
+	@$(call launch_container,eso-status)
+
 demo:
 	@$(call launch_container,demo)
 
@@ -214,6 +221,7 @@ help:
 	@echo "  lab           Install HashiCorp Vault (lab mode only)"
 	@echo "  prod          Install HashiCorp Vault (prod mode only)"
 	@echo "  eso           Install ESO only (no Vault/demo)"
+	@echo "  eso-status    Show ESO operator and operand status"
 	@echo "  demo          Configure Vault + ESO with demo data (dependent on vault)"
 	@echo "  verify        Validate (Vault + ESO + demo) configuration"
 	@echo "  dev-demo      Deploy full dev setup (Vault + ESO + demo + verify)"

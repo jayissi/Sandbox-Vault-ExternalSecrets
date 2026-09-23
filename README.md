@@ -4,6 +4,7 @@
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.31+-326CE5?logo=kubernetes&logoColor=326CE5&labelColor=white)](https://kubernetes.io/)
 [![Openshift](https://img.shields.io/badge/Openshift-v4.16+-EE0000?logo=redhatopenshift&logoColor=EE0000&labelColor=black)](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux)
 [![Helm](https://img.shields.io/badge/Helm-v3.12+-0F1689?logo=helm&logoColor=0F1689&labelColor=white)](https://helm.sh/docs)
+[![OLM](https://img.shields.io/badge/OLM-ESO_v1.1+-326CE5?logo=redhatopenshift&logoColor=EE0000&labelColor=black)](https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html/security_and_compliance/external-secrets-operator-for-red-hat-openshift)
 [![GNU GPL v3.0](https://img.shields.io/badge/GNU%20GPL-v3.0-A42E2B?logo=gnu&logoColor=A42E2B&labelColor=white)](https://www.gnu.org/licenses)
 
 ---
@@ -11,9 +12,13 @@
 Welcome to the **Sandbox Vault External Secrets** project!
 This project provides an automated deployment and integration of
 [HashiCorp Vault](https://github.com/hashicorp/vault-helm) and
-[External Secrets Operator](https://github.com/external-secrets/external-secrets)
+[External Secrets Operator for Red Hat OpenShift](https://github.com/openshift/external-secrets-operator)
 on OpenShift. It serves as a hands-on platform to explore secure secrets management,
 whether you're new to Vault or integrating it into existing infrastructure.
+
+The External Secrets Operator is installed via the **Operator Lifecycle Manager (OLM)**
+from the `redhat-operators` catalog, providing Red Hat support, automatic upgrades,
+and built-in security hardening (NetworkPolicies, read-only root filesystems).
 
 ---
 
@@ -52,7 +57,7 @@ make lab-demo
        └─ workflow.sh           ← validates versions (make/jq/helm already in the image)
             └─ make lab-demo    ← re-enters Makefile with WORKFLOW_IN_CONTAINER=1
                  ├─ make lab      (hashicorp-vault-helm/)
-                 ├─ make install  (external-secrets-helm/)
+                 ├─ make install  (external-secrets-olm/)
                  ├─ make demo     (vault-external-secrets-lab/)
                  └─ make verify   (vault-external-secrets-lab/)
 ```
@@ -116,7 +121,8 @@ make help
 | `dev`        | Install HashiCorp Vault in dev mode (standalone, no init required)                |
 | `lab`        | Install HashiCorp Vault in lab mode (single instance, auto-init + unseal)         |
 | `prod`       | Install HashiCorp Vault in prod mode (3-node HA Raft cluster, auto-init + unseal) |
-| `eso`        | Install External Secrets Operator only                                            |
+| `eso`        | Install External Secrets Operator only (via OLM)                                  |
+| `eso-status` | Show ESO operator and operand status                                              |
 | `demo`       | Configure Vault with demo data + AppRole + ESO manifests (requires Vault)         |
 | `verify`     | Validate the full chain: Vault → ESO → demo secret                                |
 | `dev-demo`   | Full dev setup: Vault (dev) + ESO + demo + verify                                 |
@@ -191,7 +197,14 @@ This ensures operational commands like `vault operator raft list-peers` work aft
 
 ### 3. Install External Secrets Operator
 
-ESO is installed via Helm chart into the `external-secrets` namespace. The operator watches for `SecretStore` and `ExternalSecret` resources.
+ESO is installed via the **Operator Lifecycle Manager (OLM)** from the `redhat-operators` catalog.
+The installation creates:
+
+- An **operator pod** in the `external-secrets-operator` namespace (managed by OLM Subscription/CSV)
+- Three **operand pods** in the `external-secrets` namespace (core controller, webhook, cert-controller)
+- An `ExternalSecretsConfig` singleton CR that configures the operand with NetworkPolicy egress rules
+
+The operator watches for `SecretStore`, `ClusterSecretStore`, `ExternalSecret`, and other CRs cluster-wide.
 
 ### 4. Configure Demo Data
 
@@ -211,7 +224,9 @@ The `verify-vault-openshift.sh` script validates:
 
 - Vault is reachable via its route (HTTPS)
 - Vault policy, secret, and AppRole auth exist
-- ESO pods are running
+- OLM operator resources (Subscription, CSV phase, ExternalSecretsConfig status)
+- Operator pod is running in `external-secrets-operator` namespace
+- ESO operand pods are running in `external-secrets` namespace
 - `SecretStore` and `ExternalSecret` are synced
 - The `demo` secret in OpenShift contains the expected values
 
@@ -220,37 +235,45 @@ The `verify-vault-openshift.sh` script validates:
 ## Architecture Overview
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                     OpenShift Cluster                           │
-│                                                                 │
-│  ┌──────────────────┐  ┌─────────────────────────────────────┐  │
-│  │  vault namespace  │  │   external-secrets namespace        │  │
-│  │                    │  │                                     │  │
-│  │  vault-0 (active)  │  │  external-secrets-controller       │  │
-│  │  vault-1 (standby) │  │  external-secrets-webhook          │  │
-│  │  vault-2 (standby) │  │  external-secrets-cert-controller  │  │
-│  │                    │  │                                     │  │
-│  │  Secret:           │  └──────────────┬──────────────────────┘  │
-│  │  vault-operator-   │                 │                         │
-│  │  init (root token  │                 │ watches                 │
-│  │  + unseal keys)    │                 ▼                         │
-│  └────────┬───────────┘  ┌─────────────────────────────────────┐  │
-│           │               │   demo namespace                    │  │
-│           │ KV-V2         │                                     │  │
-│           │ secret/demo   │   SecretStore (vault)               │  │
-│           │               │     └─ AppRole auth → vault:8200    │  │
-│           │               │                                     │  │
-│           └───────────────│── ExternalSecret (vault)            │  │
-│                           │     └─ pulls secret/demo            │  │
-│                           │                                     │  │
-│                           │   Secret: demo ← synced by ESO     │  │
-│                           │     Hello=World!, foo=bar,          │  │
-│                           │     Red_Hat=Linux                   │  │
-│                           │                                     │  │
-│                           │   Secret: approle-vault             │  │
-│                           │     (role-id, secret-id for ESO)    │  │
-│                           └─────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           OpenShift Cluster                             │
+│                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  external-secrets-operator namespace (OLM-managed)               │   │
+│  │                                                                  │   │
+│  │  operator-controller-manager ← OLM Subscription + CSV           │   │
+│  │  ExternalSecretsConfig (cluster) ← deploys operand below        │   │
+│  └──────────────────────────────────┬───────────────────────────────┘   │
+│                                     │ deploys                           │
+│                                     ▼                                   │
+│  ┌──────────────────┐  ┌─────────────────────────────────────┐         │
+│  │  vault namespace  │  │   external-secrets namespace        │         │
+│  │                    │  │                                     │         │
+│  │  vault-0 (active)  │  │  external-secrets-controller       │         │
+│  │  vault-1 (standby) │  │  external-secrets-webhook          │         │
+│  │  vault-2 (standby) │  │  external-secrets-cert-controller  │         │
+│  │                    │  │                                     │         │
+│  │  Secret:           │  └──────────────┬──────────────────────┘        │
+│  │  vault-operator-   │                 │                               │
+│  │  init (root token  │                 │ watches                       │
+│  │  + unseal keys)    │                 ▼                               │
+│  └────────┬───────────┘  ┌─────────────────────────────────────┐       │
+│           │               │   demo namespace                    │       │
+│           │ KV-V2         │                                     │       │
+│           │ secret/demo   │   SecretStore (vault)               │       │
+│           │               │     └─ AppRole auth → vault:8200    │       │
+│           │               │                                     │       │
+│           └───────────────│── ExternalSecret (vault)            │       │
+│                           │     └─ pulls secret/demo            │       │
+│                           │                                     │       │
+│                           │   Secret: demo ← synced by ESO     │       │
+│                           │     Hello=World!, foo=bar,          │       │
+│                           │     Red_Hat=Linux                   │       │
+│                           │                                     │       │
+│                           │   Secret: approle-vault             │       │
+│                           │     (role-id, secret-id for ESO)    │       │
+│                           └─────────────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 > **Note:** The diagram above reflects the **prod (HA)** topology with 3 Vault pods. In **dev** and **lab** modes, a single `vault-0` instance is deployed instead.
@@ -279,13 +302,21 @@ The `verify-vault-openshift.sh` script validates:
 │   ├── values.auto-unseal.yaml      # Helm overlay: sidecar mounts vault-auto-unseal.sh
 │   ├── vault-auto-unseal.sh         # Auto-unseal sidecar script (mounted via ConfigMap)
 │   └── run-init-container.sh        # Run tooling inside an origin-cli container
-├── external-secrets-helm/           # External Secrets Operator Helm chart deployment
-│   ├── Makefile                     # install/clean targets
-│   └── README.md
+├── external-secrets-olm/            # External Secrets Operator (OLM-managed)
+│   ├── Makefile                     # install/clean/status targets (OLM via oc apply)
+│   ├── README.md                    # OLM installation docs
+│   ├── manifests/                   # OLM resource manifests
+│   │   ├── namespace.yaml           # external-secrets-operator namespace
+│   │   ├── operatorgroup.yaml       # OperatorGroup (all-namespace scope)
+│   │   ├── subscription.yaml        # OLM Subscription (stable-v1 channel)
+│   │   └── externalsecretsconfig.yaml  # Operand config + NetworkPolicy egress
+│   └── references/                  # Admin reference files (NOT automated)
+│       ├── networkpolicy-egress-tightening.yaml  # Egress rules for Vault, AAP, ArgoCD, DNS
+│       └── metrics-monitoring.yaml  # ServiceMonitor, PrometheusRule, PromQL examples
 ├── vault-external-secrets-lab/      # Demo data + verification
 │   ├── Makefile                     # demo/clean/verify targets
 │   ├── post-install-v3.sh           # Vault demo data + AppRole + ESO manifests
-│   ├── verify-vault-openshift.sh    # End-to-end validation script
+│   ├── verify-vault-openshift.sh    # End-to-end validation script (OLM + operand + Vault)
 │   ├── README.md
 │   └── manifests/                   # OpenShift templates
 │       └── sandbox-vault-external-secrets-template.yaml
@@ -293,8 +324,8 @@ The `verify-vault-openshift.sh` script validates:
 │   ├── ODF-Vault.txt
 │   ├── odf-vault-kube-auth
 │   └── odf-vault-token-auth
-├── images/                          # Screenshots and diagrams
-├── _archived/                       # Legacy scripts (kept for reference)
+├── _archived/                       # Legacy scripts and previous ESO Helm chart (kept for reference)
+│   └── external-secrets-helm/       # Previous Helm-based ESO install (archived)
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -311,7 +342,7 @@ make clean
 This removes, in order:
 
 1. Demo namespace (SecretStore, ExternalSecret, Secrets)
-2. External Secrets Operator (Helm release, namespace, webhooks)
+2. External Secrets Operator (OLM Subscription, CSV, CRDs, operand + operator namespaces)
 3. HashiCorp Vault (Helm release, PVCs, RBAC, namespace)
 
 ---
@@ -325,8 +356,8 @@ This removes, in order:
 | `CONTAINER_ENGINE`       | `podman`      | Container runtime (`podman` or `docker`)                                     |
 | `OC_INSECURE_TLS`        | `true`        | Skip TLS verification for `oc login`                                         |
 | `VAULT_AUTO_UNSEAL`      | `false`       | Enable auto-unseal sidecar; pods automatically unseal on restart             |
-| `NODE_SELECTOR`          | —             | JSON nodeSelector for Vault + ESO pods (edit in `lib/helm.mk`)               |
-| `TOLERATIONS`            | —             | JSON tolerations for Vault + ESO pods (edit in `lib/helm.mk`)                |
+| `NODE_SELECTOR`          | —             | JSON nodeSelector for Vault pods (edit in `lib/helm.mk`)                     |
+| `TOLERATIONS`            | —             | JSON tolerations for Vault pods (edit in `lib/helm.mk`)                      |
 | `OPENSHIFT_API_URL`      | —             | API URL when not using host kubeconfig                                       |
 | `CLUSTER_ADMIN_USERNAME` | —             | Admin username for `oc login`                                                |
 | `CLUSTER_ADMIN_PASSWORD` | —             | Admin password for `oc login`                                                |

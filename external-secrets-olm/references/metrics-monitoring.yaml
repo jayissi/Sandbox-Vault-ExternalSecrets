@@ -1,0 +1,167 @@
+# =============================================================================
+# REFERENCE ONLY — Metrics & Monitoring for External Secrets Operator
+# =============================================================================
+#
+# This file is NOT used by the automation. It is provided as a reference for
+# administrators who want to enable Prometheus metrics collection and alerting
+# for the External Secrets Operator.
+#
+# The OLM-installed ESO supports metrics collection for both the operator and
+# operands. OpenShift includes a built-in Prometheus stack (via the
+# cluster-monitoring-operator) that can scrape these metrics.
+#
+# HOW TO USE:
+#   1. Review and customize the resources below for your environment.
+#   2. Apply the ServiceMonitor and PrometheusRule resources to your cluster.
+#   3. Verify metrics appear in the OpenShift web console under
+#      Observe → Metrics.
+#
+# PREREQUISITES:
+#   - OpenShift cluster-monitoring-operator is running (default on OCP 4.x).
+#   - User workload monitoring is enabled if scraping from non-openshift-*
+#     namespaces. See:
+#     https://docs.openshift.com/container-platform/latest/observability/monitoring/enabling-monitoring-for-user-defined-projects.html
+# =============================================================================
+
+---
+# Step 1: Enable user workload monitoring (if not already enabled).
+#
+# Check if already enabled:
+#   oc get configmap cluster-monitoring-config -n openshift-monitoring -o yaml
+#
+# If not, create or patch the ConfigMap:
+#
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: cluster-monitoring-config
+#   namespace: openshift-monitoring
+# data:
+#   config.yaml: |
+#     enableUserWorkload: true
+
+---
+# Step 2: ServiceMonitor for the external-secrets operand.
+#
+# This tells Prometheus to scrape metrics from the external-secrets pods.
+# The external-secrets controller exposes metrics on port 8080 at /metrics.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-secrets-metrics
+  namespace: external-secrets
+  labels:
+    app: external-secrets
+spec:
+  selector:
+    matchLabels:
+      app: external-secrets
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scheme: http
+
+---
+# Step 3: ServiceMonitor for the external-secrets webhook.
+#
+# The webhook component also exposes metrics.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-secrets-webhook-metrics
+  namespace: external-secrets
+  labels:
+    app: external-secrets-webhook
+spec:
+  selector:
+    matchLabels:
+      app: external-secrets-webhook
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scheme: http
+
+---
+# Step 4: PrometheusRule for alerting on sync failures.
+#
+# These rules fire alerts when ExternalSecrets fail to sync or when
+# SecretStores become unhealthy.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: external-secrets-alerts
+  namespace: external-secrets
+  labels:
+    app: external-secrets
+spec:
+  groups:
+    - name: external-secrets.rules
+      rules:
+        # Alert when an ExternalSecret has not synced successfully for 30m.
+        - alert: ExternalSecretSyncFailed
+          expr: |
+            externalsecret_status_condition{condition="Ready", status="False"} == 1
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ExternalSecret {{ $labels.namespace }}/{{ $labels.name }} sync failed"
+            description: >-
+              ExternalSecret {{ $labels.namespace }}/{{ $labels.name }} has not
+              synced successfully for more than 30 minutes.
+
+        # Alert when a SecretStore is not valid for 15m.
+        - alert: SecretStoreUnhealthy
+          expr: |
+            secretstore_status_condition{condition="Ready", status="False"} == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "SecretStore {{ $labels.namespace }}/{{ $labels.name }} is unhealthy"
+            description: >-
+              SecretStore {{ $labels.namespace }}/{{ $labels.name }} has been in
+              an unhealthy state for more than 15 minutes. ExternalSecrets
+              referencing this store will fail to sync.
+
+        # Alert when sync error rate exceeds threshold.
+        - alert: ExternalSecretHighErrorRate
+          expr: |
+            rate(externalsecret_sync_calls_error_total[5m])
+            / rate(externalsecret_sync_calls_total[5m]) > 0.1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High ExternalSecret sync error rate"
+            description: >-
+              More than 10% of ExternalSecret sync calls are failing over the
+              last 15 minutes.
+
+# =============================================================================
+# Key Metrics Available from External Secrets Operator:
+#
+# externalsecret_sync_calls_total       — Total sync calls (counter)
+# externalsecret_sync_calls_error_total — Total failed sync calls (counter)
+# externalsecret_status_condition       — Current condition of ExternalSecrets (gauge)
+# secretstore_status_condition          — Current condition of SecretStores (gauge)
+# controller_runtime_reconcile_total    — Total reconciliations (counter)
+# controller_runtime_reconcile_errors_total — Reconciliation errors (counter)
+#
+# Example PromQL queries:
+#
+#   # Sync success rate over 5m window:
+#   1 - (rate(externalsecret_sync_calls_error_total[5m])
+#         / rate(externalsecret_sync_calls_total[5m]))
+#
+#   # ExternalSecrets not in Ready state:
+#   externalsecret_status_condition{condition="Ready", status="False"}
+#
+#   # SecretStores not in Ready state:
+#   secretstore_status_condition{condition="Ready", status="False"}
+#
+#   # Reconciliation error rate:
+#   rate(controller_runtime_reconcile_errors_total[5m])
+# =============================================================================
